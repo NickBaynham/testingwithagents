@@ -15,15 +15,31 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 - Visual regression baselines: deferred to Phase 2 (first appears on `/projects`).
 - AWS OIDC role + `AWS_DEPLOY_ROLE_ARN` / `AMPLIFY_APP_ID` GitHub secrets must be configured before the `deploy` job in `.github/workflows/ci.yml` can succeed on `main` pushes. See `docs/DEPLOYMENT.md` "Continuous Deployment (GitHub Actions)" for the setup.
 
-## Phase 1 (planned)
+## Phase 1 (MVP Skeleton)
 
-- Global layout (header + nav + footer, skip-to-content, dark/light toggle).
-- Tailwind design tokens (typography scale, spacing, palette).
-- Home, About, Resume, Contact pages.
-- Recruiter Summary Block component (rendered on Home, About, Resume, Projects index, Blog index).
-- SEO baseline (titles, descriptions, canonical, OG defaults, sitemap, robots).
-- 404 page.
-- Recruiter-journey Playwright E2E.
+### Commit A (done)
+
+- [x] Global layout (header + nav + footer, skip-to-content, dark/light toggle).
+- [x] Tailwind design tokens (palette, light/dark themes, WCAG AA verified).
+- [x] Home page with real hero, positioning paragraph, four primary CTAs, placeholder sections.
+- [x] 404 page.
+- [x] `docs/MAINTENANCE.md` skeleton + Commit A catalog entries.
+
+### Commit B (planned)
+
+- About, Resume, Contact pages.
+- MDX wiring (`@next/mdx`, `mdx-components.tsx`, `pageExtensions`).
+- `@tailwindcss/typography` v4 pin (verify release line first; closes Phase 0 deferral).
+- `content/resume/resume.mdx` + `content/recruiter-summary.mdx`.
+- `<RecruiterSummary>` block (rendered on Home, About, Resume; Projects/Blog indexes in Phases 2/3).
+- `docs/MAINTENANCE.md` catalog entries for `<RecruiterSummary>` and the three new pages.
+
+### Commit C (planned)
+
+- SEO baseline (per-route `generateMetadata`, canonical, OG defaults, `app/sitemap.ts`, `app/robots.ts`).
+- Recruiter-journey Playwright E2E (Home -> Resume -> resume.pdf link -> LinkedIn -> Contact).
+- axe scans on About, Resume, Contact.
+- `docs/MAINTENANCE.md` SEO section + final catalog reconciliation.
 
 ## Phase 2 (planned)
 

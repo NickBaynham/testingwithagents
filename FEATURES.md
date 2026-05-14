@@ -13,6 +13,16 @@ Current shipped capabilities of testingwithagents.com.
 - GitHub Actions `deploy` job that, on push to `main`, assumes an AWS IAM role via OIDC and triggers an Amplify release through `aws amplify start-job`.
 - Documentation skeleton (`docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/CONTENT_GUIDE.md`, `docs/DEPLOYMENT.md`) that grows per phase.
 
-## Phase 1 (planned)
+## Phase 1 (MVP Skeleton)
 
-See `plan/plan.md` and `TODO.md`.
+### Commit A - global layout, design tokens, Home, 404
+
+- Design-token system in `app/globals.css`: slate palette + deep-cyan accent, light / dark themes driven by a `data-theme` attribute, no-FOUC bootstrap script set before paint, `prefers-color-scheme` fallback when JS is disabled. All text/surface combinations meet WCAG AA contrast.
+- Global layout shell: sticky `<Nav>` (active-route detection), `<SkipLink>`, `<Footer>` with social links, `<ThemeToggle>` using `useSyncExternalStore`. Site-wide content lives in `lib/site-config.ts`.
+- Home page (`/`) with real hero, positioning paragraph, four primary CTAs (Portfolio, Blog, Resume PDF, Contact), and bordered section blocks for Featured projects / Latest writing / Skills snapshot.
+- Custom 404 page (`app/not-found.tsx`).
+- `docs/MAINTENANCE.md` - site-maintenance handbook with quick-reference table, theming guide, and component catalog; updated alongside every Phase 1 component.
+
+### Commit B / C (planned)
+
+See `plan/plan.md` and `TODO.md` for About / Resume / Contact, `<RecruiterSummary>`, MDX wiring, and SEO baseline.

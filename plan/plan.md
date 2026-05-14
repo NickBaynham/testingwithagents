@@ -60,6 +60,7 @@ testingwithagents/
   docs/
     ARCHITECTURE.md
     CONTENT_GUIDE.md
+    MAINTENANCE.md
     TESTING.md
     DEPLOYMENT.md
   docker/                    Compose files for local tooling
@@ -146,6 +147,15 @@ Tasks:
 7. Recruiter Summary Block component reused on every major page: Home, About, Resume, Projects index, and Blog index. Per requirements section 10.3, this keeps the job-search context visible without dominating the layout. The block reads target roles from a single content source (`content/recruiter-summary.mdx`) so updates land in one place.
 8. SEO primitives: `<title>`, meta description, canonical URL, Open Graph defaults, generated `sitemap.xml`, `robots.txt`.
 9. 404 page.
+10. Author `docs/MAINTENANCE.md` - the site-maintenance handbook. Captures the recurring "how do I change X on the site?" tasks so a future maintainer (or future-you) does not have to re-derive answers from the codebase. Required sections:
+    - Common content edits: hero copy, tagline, positioning paragraph, primary CTAs, target roles, footer links, recruiter-summary text.
+    - Theming and visual tokens: where the slate palette and accent color live, how to swap them, how light/dark is toggled, no-FOUC strategy.
+    - Component catalog: one-line purpose + props for every component in `components/`, kept in sync as components ship.
+    - Adding a nav link or footer link without touching layout code.
+    - Updating the resume: where the source MDX lives, how `/resume.pdf` is generated (Phase 4 link), what target-role list to edit.
+    - SEO basics: per-route `generateMetadata`, OG image overrides, sitemap regeneration triggers.
+    - "If you only change one thing today" quick-reference table at the top, linking to each section.
+    Cross-link `docs/CONTENT_GUIDE.md` (for adding projects/posts/resume) and `docs/ARCHITECTURE.md` (for system structure) to avoid duplication. Each Phase 1 component or page added in this phase ships with its catalog entry in `docs/MAINTENANCE.md` written in the same commit.
 
 Testing:
 
@@ -156,12 +166,14 @@ Testing:
 Documentation:
 
 - Update `docs/ARCHITECTURE.md`: routing, layout, theming.
+- Create `docs/MAINTENANCE.md` per task 10. Update it in the same commit as any new component or page so the catalog never drifts.
 - Update `docs/CONTENT_GUIDE.md`: how the Resume MDX is structured.
-- Update `CHANGELOG.md`, `FEATURES.md`.
+- Update `CHANGELOG.md`, `FEATURES.md`, `TODO.md`.
 
 Exit criteria:
 
 - All six MVP pages render with real layout and copy stubs.
+- `docs/MAINTENANCE.md` is current with every component and page shipped in Phase 1.
 - Recruiter E2E passes.
 
 ---
@@ -371,6 +383,7 @@ Reference documents updated when their domain changes:
 
 - `docs/ARCHITECTURE.md` - structure, routing, theming, SEO, headers.
 - `docs/CONTENT_GUIDE.md` - how to add a project, post, or resume update.
+- `docs/MAINTENANCE.md` - site-maintenance handbook: common edits, theming, component catalog, nav/footer changes, "if you only change one thing today" quick reference.
 - `docs/TESTING.md` - how to run and extend the test suites.
 - `docs/DEPLOYMENT.md` - environments, DNS, secrets, rollback.
 

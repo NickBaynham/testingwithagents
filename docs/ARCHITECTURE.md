@@ -28,11 +28,32 @@ Set in Phase 4. CSP uses a per-request nonce issued by Next.js middleware; inlin
 
 ## Routing & Layout
 
-To be filled in during Phase 1 (global layout, navigation, theming).
+App Router under `app/`. The root layout (`app/layout.tsx`) wraps every route with:
+
+1. A no-FOUC inline `themeBootstrap` script (loaded via `next/script` with `strategy="beforeInteractive"`) that reads `localStorage.theme` -> `prefers-color-scheme` and sets `data-theme` on `<html>` before paint.
+2. `<SkipLink>` as the first focusable element in `<body>`, targeting `#main`.
+3. `<Nav>` (sticky, client component for active-route detection via `usePathname`).
+4. `<main id="main">` containing the route subtree.
+5. `<Footer>` (server component).
+
+Routes implemented in Phase 1 Commit A: `/` and `not-found`. Sibling pages (`/about`, `/resume`, `/contact`) land in Commit B; SEO primitives (`sitemap.ts`, `robots.ts`, per-route `generateMetadata`) in Commit C.
+
+Site-wide content (name, role, tagline, email, social links, primary nav) lives in `lib/site-config.ts` so a single edit propagates everywhere.
 
 ## Design Tokens
 
-To be filled in during Phase 1 (Tailwind config, light/dark palette, typography scale).
+Palette: slate neutrals + deep-cyan accent. Defined as CSS custom properties under `:root, [data-theme="light"]` and `[data-theme="dark"]` blocks in `app/globals.css`, then re-declared inside an `@theme inline` block so Tailwind v4 utilities can reference them.
+
+Light / dark resolution order at first paint (without JS):
+
+1. `[data-theme="light"]` or `[data-theme="dark"]` selectors win when the bootstrap script has run.
+2. The `:root:not([data-theme])` fallback inside a `prefers-color-scheme: dark` media query covers JS-disabled users.
+
+Tokens fall into four families - background surfaces (`--color-bg`, `--color-surface`, `--color-surface-muted`), borders (`--color-border`), text (`--color-text`, `--color-text-muted`, `--color-text-subtle`), accent (`--color-accent`, `--color-accent-hover`, `--color-accent-fg`, `--color-focus-ring`). The full table with hex values and WCAG-AA notes is in `docs/MAINTENANCE.md` under "Theming and visual tokens".
+
+Type scale: Tailwind v4 defaults, surfaced through `@theme` so they can be overridden centrally. Font stack uses `next/font/google` to load Geist Sans + Geist Mono with `display: "swap"`.
+
+A change to any token must keep the homepage and footer combinations above WCAG AA contrast. `make a11y` enforces this; the historical tightest pair is light-mode text-subtle (`#475569`) on `--color-surface-muted` (`#f1f5f9`).
 
 ## SEO
 

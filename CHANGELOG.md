@@ -4,6 +4,18 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 1 - MVP Skeleton (Commit A)
+
+- Design tokens in `app/globals.css`: slate neutral palette + deep-cyan accent, exposed via CSS custom properties and re-declared in `@theme inline` so Tailwind v4 utilities can reference them. Light / dark resolved by a `data-theme` attribute on `<html>` with a `prefers-color-scheme` fallback for first paint without JS.
+- New layout components under `components/`: `SkipLink`, `Nav` (sticky, marks active route via `usePathname`), `Footer`, `ThemeToggle` (uses `useSyncExternalStore` to mirror the `data-theme` attribute so it satisfies React 19's `react-hooks/set-state-in-effect` rule). Shared site-wide content (name, role, tagline, email, social links, primary nav) consolidated in `lib/site-config.ts`.
+- `app/layout.tsx` rewritten: `metadataBase` + title template + description; no-FOUC inline `themeBootstrap` loaded via `next/script` with `strategy="beforeInteractive"`; SkipLink + Nav + `<main id="main">` + Footer wrap every route.
+- `app/page.tsx` rewritten as the real Home: eyebrow tagline, "Hi, I'm Nick Baynham." H1, positioning paragraph verbatim from `requirements/business_requirements.md` section 22, four primary CTAs (View Portfolio, Read the Blog, Download Resume, Contact Me), bordered section blocks for Featured projects, Latest writing, and Skills snapshot.
+- Added `app/not-found.tsx` 404 page with Home and Projects CTAs.
+- Tightened light-mode text tokens to slate-600 / slate-700 to keep all text/surface combinations above WCAG AA. Caught and fixed by `make a11y`.
+- Unit tests for `<Nav>` (renders every primary link, marks the active route) and `<ThemeToggle>` (toggles `data-theme`, persists to `localStorage`, flips back on second click). `tests/unit/setup.ts` now polyfills `matchMedia` in jsdom and clears `data-theme` / `localStorage` between tests.
+- Authored `docs/MAINTENANCE.md` - site-maintenance handbook with a quick-reference table, theming guide, component catalog, and "when something looks broken" troubleshooting. Linked from `README.md` and `plan/plan.md`. Per `plan/plan.md` Phase 1 task 10, the catalog is updated in the same commit as any new component or page.
+- Filled in `docs/ARCHITECTURE.md` Routing & Layout and Design Tokens sections.
+
 ### Phase 0 - Foundations
 
 - Scaffolded Next.js 16 + TypeScript (strict) + Tailwind CSS v4 via `create-next-app`.

@@ -9,7 +9,7 @@ Authoritative documents:
 - [`AGENTS.md`](AGENTS.md) — working agreement, project identity, definition of done.
 - [`requirements/business_requirements.md`](requirements/business_requirements.md) — scope, audiences, user journeys, success metrics.
 - [`plan/plan.md`](plan/plan.md) — phased delivery plan, exit criteria.
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/CONTENT_GUIDE.md`](docs/CONTENT_GUIDE.md), [`docs/TESTING.md`](docs/TESTING.md), [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/CONTENT_GUIDE.md`](docs/CONTENT_GUIDE.md), [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md), [`docs/TESTING.md`](docs/TESTING.md), [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 - [`CHANGELOG.md`](CHANGELOG.md), [`FEATURES.md`](FEATURES.md), [`TODO.md`](TODO.md) — living status.
 
 ## Quickstart
