@@ -35,11 +35,17 @@ services:
     image: lycheeverse/lychee:latest
     profiles: ["tools"]
     working_dir: /workspace
+    # Mounted read-only on purpose: lychee should not need to write anywhere
+    # in the repo. Cache is disabled in lychee.toml for the same reason.
     volumes:
       - ..:/workspace:ro
     command:
       - --config
       - /workspace/lychee.toml
+      # Root-relative URLs in the static export (e.g. /about/, /_next/...)
+      # resolve against /workspace/out/.
+      - --root-dir
+      - /workspace/out
       - --
       - "./out/**/*.html"
       - "./*.md"

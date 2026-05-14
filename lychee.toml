@@ -1,11 +1,40 @@
-cache = true
-max_cache_age = "1d"
+# Lychee config. See https://lychee.cli.rs/usage/config/ for full options.
+#
+# Root-relative links in the static export (e.g. /about/, /_next/...) are
+# resolved against the `out/` build artifact by setting `base = "out"`.
+# Lychee runs against the markdown sources too; relative paths there resolve
+# from the file location as usual.
+#
+# Cache is disabled because the Docker Compose run mounts the repo
+# read-only into /workspace; writing .lycheecache to cwd fails. The runs are
+# short, so the cache is not worth a writable volume.
+
+cache = false
 no_progress = true
 accept = ["200..=299", "429"]
+
+# External hosts that block bots (return non-2xx for HEAD/GET) live here.
 exclude = [
   "^http(s)?://localhost",
   "^http(s)?://127\\.0\\.0\\.1",
   "^mailto:",
+  # LinkedIn returns HTTP 999 to anything that looks like an automated client.
+  # Verified manually that the canonical profile URL works in a real browser.
+  "^https?://(?:www\\.)?linkedin\\.com",
+  #
+  # Phase 1+ placeholder routes. The Home nav and CTAs link to destinations
+  # that ship in later commits/phases; until they exist, lychee would report
+  # them as broken. Each exclude below has a removal trigger — delete the
+  # line when the phase listed lands.
+  #
+  # Remove with Commit B (About, Resume, Contact pages):
+  "/(about|resume|contact)/?$",
+  # Remove with Phase 2 (Projects index):
+  "/projects/?$",
+  # Remove with Phase 3 (Blog index):
+  "/blog/?$",
+  # Remove with Phase 4 (build-time resume PDF generation):
+  "/resume\\.pdf$",
 ]
 exclude_path = [
   "node_modules",

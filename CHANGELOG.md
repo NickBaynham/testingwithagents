@@ -4,6 +4,13 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 1 - Post-deploy verification
+
+- Caught and fixed an Amplify Hosting default-rule bug: every new app ships with a customRule of `source: "/<*>", target: "/index.html", status: "404-200"`, which serves the homepage body for every non-existent route. Replaced with `target: "/404.html", status: "404"` via `aws amplify update-app --custom-rules` so the real 404 page is what users see. Required step is now documented in `docs/DEPLOYMENT.md` ("customRules: 404 handling"), called out as a Phase 0 task in `plan/plan.md`, and listed as a troubleshooting entry in `docs/MAINTENANCE.md`.
+- New Playwright specs that lock in the behavior the customRule misconfiguration broke: `tests/e2e/not-found.spec.ts` (unknown route renders the 404 page, direct `/404/` URL works, Home link returns to the homepage), `tests/e2e/nav.spec.ts` (every primary nav link present, four Home CTAs point at the correct hrefs, skip-to-content link works, footer social links visible), `tests/e2e/theme.spec.ts` (toggle flips `data-theme` and persists across reload; first paint honors `prefers-color-scheme`).
+- Mobile Nav layout fix: at 390x844 the previous flex row overflowed and the `<ThemeToggle>` click was intercepted by the brand link. Nav now has a horizontally scrollable primary list, a shrink-protected toggle, and tighter mobile padding.
+- Linkcheck pipeline made actually runnable end-to-end. Lychee config now disables on-disk cache (the Docker mount is read-only by design), drops the unsupported `base` key, excludes LinkedIn (returns HTTP 999 to bots), and excludes the placeholder routes for `/about`, `/blog`, `/contact`, `/projects`, `/resume`, and `/resume.pdf` with explicit "remove this exclude when Phase X ships" comments. `docker/docker-compose.yml` now passes `--root-dir /workspace/out` so root-relative links inside the static export resolve correctly. Run summary: `make linkcheck` -> 57 OK, 0 errors, 37 excluded.
+
 ### Phase 1 - MVP Skeleton (Commit A)
 
 - Design tokens in `app/globals.css`: slate neutral palette + deep-cyan accent, exposed via CSS custom properties and re-declared in `@theme inline` so Tailwind v4 utilities can reference them. Light / dark resolved by a `data-theme` attribute on `<html>` with a `prefers-color-scheme` fallback for first paint without JS.

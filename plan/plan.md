@@ -116,7 +116,7 @@ Tasks:
 9. Configure GitHub Actions: jobs for lint, typecheck, unit, e2e, a11y, build, linkcheck, and a `deploy` job that triggers an AWS Amplify release on push to `main` (via OIDC-assumed IAM role; `aws amplify start-job`). Block merges on red.
 10. Create `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/CONTENT_GUIDE.md`, `docs/DEPLOYMENT.md` (stubs that grow per phase).
 11. Initialize `CHANGELOG.md`, `FEATURES.md`, `TODO.md`.
-12. Create the AWS Amplify Hosting app, connect it to the GitHub repo, configure the build spec (`amplify.yml`) for Next.js static export, enable branch auto-deploys, and verify a preview deploy of a feature branch succeeds. Record the `AMPLIFY_APP_ID` in `docs/DEPLOYMENT.md`.
+12. Create the AWS Amplify Hosting app, connect it to the GitHub repo, configure the build spec (`amplify.yml`) for Next.js static export, enable branch auto-deploys, and verify a preview deploy of a feature branch succeeds. Record the `AMPLIFY_APP_ID` in `docs/DEPLOYMENT.md`. **Override the Amplify default customRule** that ships with new apps - it rewrites every unknown path to `/index.html` with status `404-200`, which serves the homepage body for every non-existent route. Replace it with `source: "/<*>", target: "/404.html", status: "404"` so static-export `out/404.html` is what users actually see. The exact `aws amplify update-app --custom-rules` invocation lives in `docs/DEPLOYMENT.md`.
 13. Decide MDX integration approach (`@next/mdx` vs `next-mdx-remote`) and document the choice + RSC compatibility caveats in `docs/ARCHITECTURE.md`.
 14. Verify Tailwind v4 plugin compatibility (especially `@tailwindcss/typography`); pin versions accordingly.
 
@@ -125,6 +125,7 @@ Exit criteria:
 - `make install`, `make config`, `make build`, `make test`, `make run-docker`, and `make ci` all succeed locally.
 - GitHub Actions CI pipeline green on PR; the `deploy` job runs and triggers an Amplify release on push to `main`.
 - Amplify preview URL reachable for the feature branch.
+- `curl -I https://<branch>.<app>.amplifyapp.com/` returns `HTTP/2 200` and the body byte-length matches `out/index.html`; `curl https://<branch>.<app>.amplifyapp.com/this-route-does-not-exist` returns the body of `out/404.html` (not `out/index.html`). A Playwright `not-found` spec under `tests/e2e/` enforces this against the local test server.
 
 ---
 

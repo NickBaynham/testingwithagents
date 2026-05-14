@@ -14,6 +14,7 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 - Transitive `postcss <8.5.10` advisory (XSS in CSS stringify output) inside `node_modules/next/node_modules/postcss`. Only exploitable if untrusted CSS is generated server-side; for an authored static portfolio the risk is low. Wait for a Next.js 16 patch that bumps the bundled postcss; do not `npm audit fix --force` (it downgrades Next to 9.x).
 - Visual regression baselines: deferred to Phase 2 (first appears on `/projects`).
 - AWS OIDC role + `AWS_DEPLOY_ROLE_ARN` / `AMPLIFY_APP_ID` GitHub secrets must be configured before the `deploy` job in `.github/workflows/ci.yml` can succeed on `main` pushes. See `docs/DEPLOYMENT.md` "Continuous Deployment (GitHub Actions)" for the setup.
+- `lychee.toml` excludes placeholder routes (`/about`, `/blog`, `/contact`, `/projects`, `/resume`, `/resume.pdf`) until each phase ships the destination. Remove each exclude line when its phase lands (annotated inline in `lychee.toml`).
 
 ## Phase 1 (MVP Skeleton)
 

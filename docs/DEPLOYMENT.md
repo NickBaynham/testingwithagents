@@ -58,6 +58,34 @@ Notes:
 - `node_modules` and `.next/cache` are cached between builds for speed.
 - Locally, `npm run start` serves `out/` via `serve` on port 3000 (used by Playwright in CI).
 
+## customRules: 404 handling
+
+Amplify Hosting auto-provisions a customRule on new apps that rewrites every unmatched path to `/index.html` with status `404-200`. For a static export that has a real `out/404.html`, that default is wrong: users hitting `/about/` or any not-yet-built route receive the homepage body. **Override the rule once, after the app is created**:
+
+```sh
+cat > /tmp/rules.json <<'EOF'
+[
+  {
+    "source": "/<*>",
+    "target": "/404.html",
+    "status": "404"
+  }
+]
+EOF
+
+aws amplify update-app --app-id "$AMPLIFY_APP_ID" --custom-rules file:///tmp/rules.json
+```
+
+Verify with:
+
+```sh
+curl -sI "https://main.$AMPLIFY_APP_ID.amplifyapp.com/this-route-does-not-exist" | head -3
+# HTTP/2 404
+# content-length: 14961   <- matches `wc -c out/404.html`
+```
+
+If the rule is wrong, you'll see `content-length` matching `out/index.html` instead. The `tests/e2e/not-found.spec.ts` Playwright spec verifies the same behavior against the local test server on every PR.
+
 ## Custom Domain (Phase 5)
 
 1. In Amplify, add domain `testingwithagents.com` and the `www` subdomain.
