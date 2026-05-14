@@ -23,6 +23,17 @@ Current shipped capabilities of testingwithagents.com.
 - Custom 404 page (`app/not-found.tsx`).
 - `docs/MAINTENANCE.md` - site-maintenance handbook with quick-reference table, theming guide, and component catalog; updated alongside every Phase 1 component.
 
-### Commit B / C (planned)
+### Commit B - About, Resume, Contact, MDX, RecruiterSummary
 
-See `plan/plan.md` and `TODO.md` for About / Resume / Contact, `<RecruiterSummary>`, MDX wiring, and SEO baseline.
+- MDX wired via `@next/mdx` + `mdx-components.tsx` + `pageExtensions`. Tailwind v4 typography plugin loaded via `@plugin` in `app/globals.css` (closes the Phase 0 deferral).
+- `content/recruiter-summary.mdx` and `content/resume/resume.mdx` are now the single sources for the recruiter-summary block and resume body.
+- `<RecruiterSummary>` component mounts on Home, About, and Resume; reads from a single MDX file so a single edit updates every page.
+- `/about` page with Professional summary, Testing philosophy, Why AI + QA matters, What I'm building toward, and Current focus areas sections.
+- `/resume` page renders the MDX resume with Contact / LinkedIn / GitHub CTAs and the recruiter-summary block.
+- `/contact` page with email, LinkedIn, and GitHub channel cards (no form, scheduling link planned for Phase 6).
+- Home page CTAs updated: "View Resume" points to `/resume/` while the PDF generation is still in Phase 4.
+- Test coverage: navigate-from-nav e2e specs for the three new pages, axe scans on each, RecruiterSummary unit test, and a vitest MDX stub alias so unit tests work without running the @next/mdx webpack loader.
+
+### Commit C (planned)
+
+See `plan/plan.md` and `TODO.md` for SEO baseline (per-route `generateMetadata`, sitemap, robots, OG), recruiter-journey E2E, and final docs sweep.

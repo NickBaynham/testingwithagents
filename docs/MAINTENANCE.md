@@ -9,6 +9,10 @@ How to change things on testingwithagents.com without re-deriving the architectu
 | Site name, role, tagline, email, social links | `lib/site-config.ts` | [Common content edits](#common-content-edits) |
 | Primary nav links | `lib/site-config.ts` (`primaryNav`) | [Common content edits](#common-content-edits) |
 | Home hero copy or CTAs | `app/page.tsx` | [Common content edits](#common-content-edits) |
+| About page sections | `app/about/page.tsx` | [Common content edits](#common-content-edits) |
+| Resume page body | `content/resume/resume.mdx` | [Common content edits](#common-content-edits) and [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) |
+| Recruiter summary text (Home, About, Resume) | `content/recruiter-summary.mdx` | [Common content edits](#common-content-edits) |
+| Contact channels (email, LinkedIn, GitHub) | `lib/site-config.ts` + `app/contact/page.tsx` for notes | [Common content edits](#common-content-edits) |
 | 404 page copy | `app/not-found.tsx` | [Common content edits](#common-content-edits) |
 | Accent color or any palette token | `app/globals.css` (`:root[data-theme="..."]`) | [Theming and visual tokens](#theming-and-visual-tokens) |
 | Default theme behavior (light/dark fallback) | `app/layout.tsx` (`themeBootstrap`) | [Theming and visual tokens](#theming-and-visual-tokens) |
@@ -93,6 +97,22 @@ Five sections: hero (eyebrow + heading + positioning paragraph + four primary CT
 ### `app/not-found.tsx` - 404
 
 Static page rendered by Next.js when no route matches. Plain layout (the global `<Nav>` and `<Footer>` still wrap it via `app/layout.tsx`).
+
+### `components/RecruiterSummary.tsx`
+
+Server component. Wraps `content/recruiter-summary.mdx` in an `<aside aria-label="Recruiter summary">` with compact prose styling. Used on Home, About, and Resume; will also mount on Projects and Blog indexes in later phases. Edit the MDX file, not the component, to change the visible text.
+
+### `app/about/page.tsx` - About
+
+Six sections in order: introduction H1, RecruiterSummary block, Professional summary, Testing philosophy, Why AI plus QA matters, What I'm building toward, Current focus areas. All section copy is local to this file. Edit any heading or paragraph in place.
+
+### `app/resume/page.tsx` - Resume
+
+Renders `content/resume/resume.mdx` inside a `prose prose-slate` article. Above the MDX it shows the H1, three call-to-action buttons (Contact me, LinkedIn, GitHub) sourced from `lib/site-config.ts`, and the RecruiterSummary block. To update resume content, edit the MDX; to change the CTAs or social URLs, edit `lib/site-config.ts`. The downloadable PDF link will land in Phase 4.
+
+### `app/contact/page.tsx` - Contact
+
+Three contact-channel cards (Email, LinkedIn, GitHub) defined in a local `channels` array. Each card has a label, the contact handle, and a one-line note about expected response. URLs come from `lib/site-config.ts`. The footer mentions a Phase 6 scheduling link; no form today.
 
 ## Adding a nav link or footer link
 

@@ -26,14 +26,15 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 - [x] 404 page.
 - [x] `docs/MAINTENANCE.md` skeleton + Commit A catalog entries.
 
-### Commit B (planned)
+### Commit B (done)
 
-- About, Resume, Contact pages.
-- MDX wiring (`@next/mdx`, `mdx-components.tsx`, `pageExtensions`).
-- `@tailwindcss/typography` v4 pin (verify release line first; closes Phase 0 deferral).
-- `content/resume/resume.mdx` + `content/recruiter-summary.mdx`.
-- `<RecruiterSummary>` block (rendered on Home, About, Resume; Projects/Blog indexes in Phases 2/3).
-- `docs/MAINTENANCE.md` catalog entries for `<RecruiterSummary>` and the three new pages.
+- [x] About, Resume, Contact pages.
+- [x] MDX wiring (`@next/mdx`, `mdx-components.tsx`, `pageExtensions`).
+- [x] `@tailwindcss/typography` v4 pin via `@plugin` in `app/globals.css`.
+- [x] `content/resume/resume.mdx` + `content/recruiter-summary.mdx`.
+- [x] `<RecruiterSummary>` block on Home, About, Resume.
+- [x] `docs/MAINTENANCE.md` catalog entries for `<RecruiterSummary>` and the three new pages.
+- [x] Removed `/about`, `/resume`, `/contact` from `lychee.toml` exclude list (routes now exist).
 
 ### Commit C (planned)
 

@@ -27,8 +27,6 @@ exclude = [
   # them as broken. Each exclude below has a removal trigger — delete the
   # line when the phase listed lands.
   #
-  # Remove with Commit B (About, Resume, Contact pages):
-  "/(about|resume|contact)/?$",
   # Remove with Phase 2 (Projects index):
   "/projects/?$",
   # Remove with Phase 3 (Blog index):

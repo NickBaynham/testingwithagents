@@ -4,6 +4,18 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 1 - MVP Skeleton (Commit B)
+
+- Wired MDX: added `@next/mdx`, `@mdx-js/loader`, `@mdx-js/react`, `@types/mdx` and the `pageExtensions` array to `next.config.ts`. Created `mdx-components.tsx` at the repo root (required for App Router MDX). Tailwind v4 typography plugin (`@tailwindcss/typography`) loaded via `@plugin` in `app/globals.css`; closes the Phase 0 deferral.
+- New MDX content sources: `content/recruiter-summary.mdx` (target roles + one-paragraph hook, single source for every page that mounts the recruiter-summary block) and `content/resume/resume.mdx` (professional summary, target roles, core skills, technology stack, selected-experience template, contact links).
+- New `components/RecruiterSummary.tsx`: wraps the MDX summary in an `<aside aria-label="Recruiter summary">` with compact prose styling. Mounted on Home, About, and Resume per `plan/plan.md`; Projects and Blog indexes will mount it in Phases 2 and 3.
+- New pages: `app/about/page.tsx` (six sections matching `business_requirements.md` section 6.2), `app/resume/page.tsx` (renders the resume MDX inside `prose prose-slate dark:prose-invert`, with CTA buttons for Contact / LinkedIn / GitHub), `app/contact/page.tsx` (three contact-channel cards, no form, Phase 6 placeholder note for scheduling).
+- Home page CTAs updated: "Download Resume" -> "View Resume" pointing at `/resume/` while the PDF generation is still in Phase 4. Home now mounts `<RecruiterSummary>` between the hero CTAs and the featured-projects section.
+- Contact-page inline link to `/resume` now has an explicit underline so it meets axe-core's "links must be distinguishable without relying on color" rule. Caught and fixed pre-commit.
+- Tests: `tests/unit/recruiter-summary.test.tsx` (with an MDX import mock pattern), `tests/e2e/pages.spec.ts` (navigate Home -> About / Resume / Contact via the nav, assert H1, assert recruiter-summary presence on About/Resume and absence on Contact), `tests/a11y/pages.spec.ts` (axe scans on each new route). All chromium-desktop and chromium-mobile.
+- Vitest now stubs `*.mdx` imports via a path alias so unit tests can render components that transitively import MDX without running the `@next/mdx` webpack loader. Dedicated tests can still substitute their own MDX body via `vi.mock(...)`.
+- `lychee.toml`: removed the `/about`, `/resume`, `/contact` placeholder excludes now that those routes exist. The `/projects`, `/blog`, and `/resume.pdf` excludes remain with phase-removal triggers documented inline.
+
 ### Phase 1 - Post-deploy verification
 
 - Caught and fixed an Amplify Hosting default-rule bug: every new app ships with a customRule of `source: "/<*>", target: "/index.html", status: "404-200"`, which serves the homepage body for every non-existent route. Replaced with `target: "/404.html", status: "404"` via `aws amplify update-app --custom-rules` so the real 404 page is what users see. Required step is now documented in `docs/DEPLOYMENT.md` ("customRules: 404 handling"), called out as a Phase 0 task in `plan/plan.md`, and listed as a troubleshooting entry in `docs/MAINTENANCE.md`.

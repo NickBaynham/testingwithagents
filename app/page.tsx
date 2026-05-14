@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RecruiterSummary } from "@/components/RecruiterSummary";
 import { site } from "@/lib/site-config";
 
 type Cta = { label: string; href: string; emphasis?: boolean };
@@ -6,7 +7,7 @@ type Cta = { label: string; href: string; emphasis?: boolean };
 const primaryCtas: readonly Cta[] = [
   { label: "View Portfolio", href: "/projects", emphasis: true },
   { label: "Read the Blog", href: "/blog" },
-  { label: "Download Resume", href: "/resume.pdf" },
+  { label: "View Resume", href: "/resume" },
   { label: "Contact Me", href: "/contact" },
 ];
 
@@ -45,6 +46,10 @@ export default function Home() {
             </li>
           ))}
         </ul>
+
+        <div className="mt-10">
+          <RecruiterSummary />
+        </div>
       </section>
 
       <section

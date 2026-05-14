@@ -15,14 +15,16 @@ test("home renders the four primary CTAs with the expected hrefs", async ({ page
 
   // trailingSlash: true normalizes route hrefs; static files like /resume.pdf
   // keep their original form.
+  // trailingSlash: true normalizes route hrefs; static files like /resume.pdf
+  // keep their original form (none in the Home CTA set today).
   const portfolio = main.getByRole("link", { name: "View Portfolio" });
   await expect(portfolio).toHaveAttribute("href", "/projects/");
 
   const blog = main.getByRole("link", { name: "Read the Blog" });
   await expect(blog).toHaveAttribute("href", "/blog/");
 
-  const resume = main.getByRole("link", { name: "Download Resume" });
-  await expect(resume).toHaveAttribute("href", "/resume.pdf");
+  const resume = main.getByRole("link", { name: "View Resume" });
+  await expect(resume).toHaveAttribute("href", "/resume/");
 
   const contact = main.getByRole("link", { name: "Contact Me" });
   await expect(contact).toHaveAttribute("href", "/contact/");
