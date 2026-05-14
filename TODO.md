@@ -4,7 +4,8 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 
 ## In Progress (Phase 0)
 
-- [ ] AWS Amplify app creation, GitHub connection, `AMPLIFY_APP_ID` captured (user-driven). Document the value in `docs/DEPLOYMENT.md`.
+- [x] AWS Amplify app creation, GitHub connection, `AMPLIFY_APP_ID` captured (`d2f2x4ij8pxn6g`) and recorded in `docs/DEPLOYMENT.md`. Branch `main` live at `https://main.d2f2x4ij8pxn6g.amplifyapp.com`.
+- [ ] AWS OIDC provider + `testingwithagents-deploy` IAM role + GitHub secrets (`AWS_DEPLOY_ROLE_ARN`, `AMPLIFY_APP_ID`) so the GH Actions `deploy` job stops failing (user-driven, README "AWS Amplify Setup" steps 2-4).
 - [x] Write `amplify.yml` build spec for static export.
 - [ ] Verify `@tailwindcss/typography` v4 release line and pin once Phase 1 needs prose styling.
 

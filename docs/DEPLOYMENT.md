@@ -7,7 +7,7 @@ Production target: AWS Amplify Hosting. Custom domain via Route 53 + ACM. The si
 | Env | Branch | URL |
 |---|---|---|
 | Preview | any feature branch | Amplify-generated preview URL |
-| Production | `main` | `https://testingwithagents.com` (after Phase 5) |
+| Production | `main` | `https://main.d2f2x4ij8pxn6g.amplifyapp.com` (Phase 0) → `https://testingwithagents.com` (after Phase 5) |
 
 ## Required Setup (Phase 0)
 
@@ -21,7 +21,7 @@ This is a user-driven step. Run it once.
 6. Note the `AMPLIFY_APP_ID` from the console URL or `aws amplify list-apps`. Export it locally:
 
    ```sh
-   export AMPLIFY_APP_ID=d1xxxxxxxxxxx
+   export AMPLIFY_APP_ID=d2f2x4ij8pxn6g
    ```
 
    Add it to your shell profile or `.env.local` so `make deploy` works.
