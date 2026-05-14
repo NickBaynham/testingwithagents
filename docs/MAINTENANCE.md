@@ -125,9 +125,16 @@ Coming in Commit B. The plan: `content/resume/resume.mdx` is the single source. 
 
 ## SEO basics
 
-Coming in Commit C. The plan: per-route `generateMetadata` for titles, descriptions, canonicals, and OG images; `app/sitemap.ts` and `app/robots.ts` for crawler hints; OG image generation via `ImageResponse` at build time.
+What ships today:
 
-For now, only the global defaults in `app/layout.tsx` `metadata` apply. Edit those if you need to override the site-wide title template or description.
+- **Global defaults** (`app/layout.tsx`): site title template, description, canonical (for `/`), Open Graph (`website`, `siteName`, `title`, `description`, `url`, `locale`), and Twitter (`summary_large_image`). To change the global tagline or description, edit there. To change the canonical host, edit `site.url` in `lib/site-config.ts` (and `metadataBase` automatically follows).
+- **Per-route overrides**: each `app/<route>/page.tsx` exports a `Metadata` object with its own `title`, `description`, and `alternates.canonical`. To add a new page to the SEO surface, do the same in its `page.tsx` and add the route to `app/sitemap.ts`.
+- **Sitemap** (`app/sitemap.ts`): emits `/sitemap.xml` at build time. Routes are enumerated explicitly. Add an entry when a new page lands. `export const dynamic = "force-static"` is required because `next.config.ts` sets `output: "export"`.
+- **Robots** (`app/robots.ts`): emits `/robots.txt`. Allows all user agents, blocks `/api/` and `/_next/`, advertises the sitemap. Same `force-static` requirement.
+
+Open Graph images are still global; per-route OG images via `ImageResponse` land in Phase 2 (projects) and Phase 3 (blog), where they have meaningful content to render.
+
+A Playwright spec under `tests/e2e/recruiter-journey.spec.ts` asserts the canonical / OG / Twitter tags are present on the homepage and that `/sitemap.xml` and `/robots.txt` serve correctly. Run `make e2e` to verify after any SEO change.
 
 ## When something looks broken
 

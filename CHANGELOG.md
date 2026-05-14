@@ -4,6 +4,14 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 1 - MVP Skeleton (Commit C)
+
+- SEO baseline shipped end-to-end. `app/layout.tsx` `metadata` now sets the title template, description, default canonical, Open Graph (`type: website`, site name, title, description, url, locale), and Twitter card (`summary_large_image`). Each `app/<route>/page.tsx` exports its own `title`, `description`, and `alternates.canonical`. With `trailingSlash: true` the emitted canonical href ends with `/`.
+- New `app/sitemap.ts` and `app/robots.ts` emit static `/sitemap.xml` and `/robots.txt`. Both declare `export const dynamic = "force-static"` (required when `output: "export"` is set). Routes are enumerated explicitly so a new page only joins the sitemap intentionally.
+- New `tests/e2e/recruiter-journey.spec.ts`: full Home -> Resume -> Contact -> LinkedIn flow, plus checks for sitemap.xml, robots.txt, and the canonical / OG / Twitter meta tags on the homepage.
+- `docs/ARCHITECTURE.md` SEO section rewritten to reflect what shipped; `docs/MAINTENANCE.md` SEO section now lists what to edit for global vs per-route metadata and how to add a new route to the sitemap.
+- `lychee.toml`: added `^https?://(?:www\.)?testingwithagents\.com` to the placeholder excludes (canonical / sitemap URLs reference the eventual production host which does not yet resolve). Removal trigger: Phase 5 custom-domain cutover.
+
 ### Phase 1 - MVP Skeleton (Commit B)
 
 - Wired MDX: added `@next/mdx`, `@mdx-js/loader`, `@mdx-js/react`, `@types/mdx` and the `pageExtensions` array to `next.config.ts`. Created `mdx-components.tsx` at the repo root (required for App Router MDX). Tailwind v4 typography plugin (`@tailwindcss/typography`) loaded via `@plugin` in `app/globals.css`; closes the Phase 0 deferral.

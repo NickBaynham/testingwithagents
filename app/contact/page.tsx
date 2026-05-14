@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Contact",
   description:
     "Reach Nick Baynham about QA Automation, SDET, AI-Augmented QA, Test Automation Architect, and Quality Engineering roles.",
+  alternates: { canonical: "/contact" },
 };
 
 const channels = [

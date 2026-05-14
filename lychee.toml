@@ -33,6 +33,10 @@ exclude = [
   "/blog/?$",
   # Remove with Phase 4 (build-time resume PDF generation):
   "/resume\\.pdf$",
+  # Remove with Phase 5 (custom-domain cutover). Until then, canonical /
+  # sitemap URLs reference the eventual production host which does not yet
+  # resolve.
+  "^https?://(?:www\\.)?testingwithagents\\.com",
 ]
 exclude_path = [
   "node_modules",

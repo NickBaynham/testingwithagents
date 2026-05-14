@@ -34,6 +34,10 @@ Current shipped capabilities of testingwithagents.com.
 - Home page CTAs updated: "View Resume" points to `/resume/` while the PDF generation is still in Phase 4.
 - Test coverage: navigate-from-nav e2e specs for the three new pages, axe scans on each, RecruiterSummary unit test, and a vitest MDX stub alias so unit tests work without running the @next/mdx webpack loader.
 
-### Commit C (planned)
+### Commit C - SEO baseline + recruiter-journey
 
-See `plan/plan.md` and `TODO.md` for SEO baseline (per-route `generateMetadata`, sitemap, robots, OG), recruiter-journey E2E, and final docs sweep.
+- Global title template, description, canonical, Open Graph (`type: website`, site name, title, description, url, locale), and Twitter card (`summary_large_image`) wired in `app/layout.tsx`. Per-route overrides on Home, About, Resume, Contact.
+- Static `/sitemap.xml` and `/robots.txt` emitted at build time from `app/sitemap.ts` and `app/robots.ts`.
+- Recruiter-journey Playwright spec covers Home -> Resume -> Contact -> LinkedIn, plus sitemap.xml / robots.txt / canonical-and-OG meta-tag verification.
+
+Phase 1 MVP skeleton (Commits A + B + C) complete. Recruiter, hiring-manager, and peer journeys land on real pages with consistent identity, navigation, theming, accessibility, and discoverability.

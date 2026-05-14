@@ -19,14 +19,30 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const description =
+  "Portfolio and writing of Nick Baynham on AI-augmented software testing, agentic automation, and quality engineering.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
     default: `${site.name} — ${site.tagline}`,
     template: `%s — ${site.name}`,
   },
-  description:
-    "Portfolio and writing of Nick Baynham on AI-augmented software testing, agentic automation, and quality engineering.",
+  description,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: site.name,
+    title: `${site.name} — ${site.tagline}`,
+    description,
+    url: site.url,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.name} — ${site.tagline}`,
+    description,
+  },
 };
 
 /*

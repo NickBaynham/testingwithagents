@@ -36,12 +36,14 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 - [x] `docs/MAINTENANCE.md` catalog entries for `<RecruiterSummary>` and the three new pages.
 - [x] Removed `/about`, `/resume`, `/contact` from `lychee.toml` exclude list (routes now exist).
 
-### Commit C (planned)
+### Commit C (done)
 
-- SEO baseline (per-route `generateMetadata`, canonical, OG defaults, `app/sitemap.ts`, `app/robots.ts`).
-- Recruiter-journey Playwright E2E (Home -> Resume -> resume.pdf link -> LinkedIn -> Contact).
-- axe scans on About, Resume, Contact.
-- `docs/MAINTENANCE.md` SEO section + final catalog reconciliation.
+- [x] SEO baseline (per-route `generateMetadata`, canonical, OG defaults, `app/sitemap.ts`, `app/robots.ts`).
+- [x] Recruiter-journey Playwright E2E (Home -> Resume -> Contact -> LinkedIn). The `/resume.pdf` step waits for the Phase 4 PDF generator.
+- [x] axe scans on About, Resume, Contact.
+- [x] `docs/MAINTENANCE.md` SEO section + final catalog reconciliation.
+
+Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes except `/projects` (Phase 2) and `/blog` (Phase 3) are live with real content.
 
 ## Phase 2 (planned)
 

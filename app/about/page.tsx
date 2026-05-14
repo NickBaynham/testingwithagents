@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "About",
   description:
     "Nick Baynham's background, testing philosophy, and what he's building toward in AI-augmented quality engineering.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

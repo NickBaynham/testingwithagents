@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Resume",
   description:
     "Nick Baynham's resume: target roles, core skills, technology stack, and selected experience in AI-augmented quality engineering.",
+  alternates: { canonical: "/resume" },
 };
 
 export default function ResumePage() {

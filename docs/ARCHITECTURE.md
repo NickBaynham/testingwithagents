@@ -57,4 +57,12 @@ A change to any token must keep the homepage and footer combinations above WCAG 
 
 ## SEO
 
-Baseline (titles, meta description, canonical, OG defaults, sitemap, robots) lands in Phase 1. Structured data (`Person`, `BlogPosting`, `CreativeWork`, `BreadcrumbList`) lands in Phase 4.
+Phase 1 baseline shipped:
+
+- `app/layout.tsx` `metadata` sets the title template (`%s — Nick Baynham`), description, default canonical (`/`), Open Graph (`website` type, site name, title, description, url, locale), and Twitter card (`summary_large_image`).
+- Each `app/<route>/page.tsx` exports its own `Metadata` with `title`, `description`, and `alternates.canonical`. With `trailingSlash: true`, canonicals end with `/`.
+- `app/sitemap.ts` and `app/robots.ts` emit static `/sitemap.xml` and `/robots.txt`. Both files declare `export const dynamic = "force-static"` because `next.config.ts` sets `output: "export"`.
+- Sitemap routes are enumerated explicitly so a new page only ships once it is intentional; add a path when a route lands.
+- Per-route Open Graph images via `ImageResponse` are deferred to Phase 2 (projects) and Phase 3 (blog); the global OG defaults apply to every page until then.
+
+Structured data (JSON-LD: `Person`, `BlogPosting`, `CreativeWork`, `BreadcrumbList`) lands in Phase 4 along with the security-header polish.
