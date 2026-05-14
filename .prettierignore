@@ -1,0 +1,10 @@
+.next
+out
+build
+node_modules
+package-lock.json
+public
+.claude
+test-results
+playwright-report
+*.md

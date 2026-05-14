@@ -1,3 +1,9 @@
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes - APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
 # testingwithagents.com
 
 A professional portfolio and thought-leadership site for Nick Baynham, positioning him as a software testing and quality engineering professional focused on AI-augmented testing, agentic automation, and developer productivity.

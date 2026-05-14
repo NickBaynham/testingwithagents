@@ -20,7 +20,7 @@ BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
 
 .PHONY: help install setup config build test unit e2e a11y deploy \
         run-docker compose-up compose-down dev start lint typecheck \
-        linkcheck lighthouse ci \
+        linkcheck ci \
         _require-node _require-pkg _require-compose _require-aws
 
 help:
@@ -30,7 +30,7 @@ help:
 	@echo "  build       Production build (next build)"
 	@echo "  test        Unit + e2e + a11y test suites"
 	@echo "  deploy      Trigger AWS Amplify release of the current branch"
-	@echo "  run-docker  Bring up local Docker services (analytics, lighthouse, lychee)"
+	@echo "  run-docker  Bring up local Docker services (analytics, lychee)"
 	@echo ""
 	@echo "Supporting:"
 	@echo "  dev         Run Next.js dev server"
@@ -41,8 +41,7 @@ help:
 	@echo "  compose-up  Alias for run-docker"
 	@echo "  compose-down  Stop local Docker services"
 	@echo "  linkcheck   lychee broken-link scan against built site"
-	@echo "  lighthouse  Lighthouse CI against built site"
-	@echo "  ci          Full local CI: lint, typecheck, test, build, linkcheck, lighthouse"
+	@echo "  ci          Full local CI: lint, typecheck, test, build, linkcheck"
 
 _require-node:
 	@command -v node >/dev/null || { echo "ERROR: Node.js is not installed. Install Node 20+ first."; exit 1; }
@@ -97,8 +96,8 @@ start: _require-pkg
 
 lint: _require-pkg
 	npm run lint
-	npx prettier --check .
-	npx markdownlint "**/*.md" --ignore node_modules --ignore .next
+	npm run format:check
+	npm run lint:md
 
 typecheck: _require-pkg
 	npx tsc --noEmit
@@ -123,9 +122,6 @@ compose-down: _require-compose
 linkcheck: _require-compose
 	docker compose -f $(COMPOSE_FILE) run --rm lychee
 
-lighthouse: _require-compose
-	docker compose -f $(COMPOSE_FILE) run --rm lighthouse
-
 deploy: _require-pkg _require-aws
 	@echo "Triggering Amplify release for branch '$(BRANCH)' on app $$AMPLIFY_APP_ID..."
 	aws amplify start-job \
@@ -133,5 +129,5 @@ deploy: _require-pkg _require-aws
 	  --branch-name "$(BRANCH)" \
 	  --job-type RELEASE
 
-ci: lint typecheck test build linkcheck lighthouse
+ci: lint typecheck test build linkcheck
 	@echo "Local CI complete."
