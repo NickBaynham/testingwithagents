@@ -45,13 +45,14 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 
 Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes except `/projects` (Phase 2) and `/blog` (Phase 3) are live with real content.
 
-## Phase 2 (planned)
+## Phase 2 (in progress)
 
-- `content/projects/*.mdx` with Zod-validated frontmatter.
-- `/projects` index with category/tech filters (progressive enhancement).
-- `/projects/[slug]` case-study template.
-- Three MVP projects: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework.
-- Open Graph image generator.
+- [x] Theme system upgrade: default to slate-light regardless of `prefers-color-scheme`, keep slate-dark as opt-in, add warm theme (white + amber-700). `<ThemeToggle>` is now a three-option radiogroup. Axe scans run per-theme on Home, About, Resume, Contact.
+- [ ] `content/projects/*.mdx` with Zod-validated frontmatter.
+- [ ] `/projects` index with category/tech filters (progressive enhancement).
+- [ ] `/projects/[slug]` case-study template.
+- [ ] Three MVP projects: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework.
+- [ ] Open Graph image generator.
 
 ## Phase 6 (deferred from Phase 2 MVP)
 

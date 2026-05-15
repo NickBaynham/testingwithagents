@@ -199,13 +199,22 @@ Tasks:
    The Playwright Automation Project (requirements section 7.4) and Quality Intelligence Dashboard (requirements section 7.5) are intentionally deferred to Phase 6 to keep MVP scope tight. They are tracked in `TODO.md` from Phase 0.
 7. Home page wires its "Featured Projects" section to load top three by `featured` flag.
 8. Add Open Graph image generator for project pages using Next.js `ImageResponse`.
+9. Theme system upgrade. Phase 1 shipped two themes (slate light + slate dark) with the no-FOUC bootstrap resolving from `localStorage.theme` then `prefers-color-scheme`. Phase 2 makes the light slate theme the explicit default and adds a third option:
+   - **Default**: existing slate light (white-ish background, slate text, deep-cyan accent). Site uses this for any visitor with no stored preference, regardless of OS `prefers-color-scheme`.
+   - **Dark**: existing slate dark, kept as an opt-in only.
+   - **New "Warm"**: pure white background, slate text, **amber/orange accent** (start from `amber-700 #b45309` for the accent, `amber-800 #92400e` for hover, `amber-100 #fef3c7` for `--color-surface-muted`). Borders stay slate-200 unless an amber tint reads better in mockups. All text/surface combinations must meet WCAG AA contrast (verified by `make a11y`); the historical tight pairs to check are `--color-text-subtle` on `--color-surface-muted` and accent links inside paragraph copy.
+   - Reshape `<ThemeToggle>` from a binary flip to a three-option control (segmented control, dropdown, or labeled cycle). The chosen pattern must be keyboard-accessible and clearly indicate the active theme; preserve `useSyncExternalStore` so the React 19 `react-hooks/set-state-in-effect` rule still passes.
+   - Update `app/layout.tsx` `themeBootstrap`: read `localStorage.theme` first; if absent, set `data-theme="light"` (no longer fall back to `prefers-color-scheme`). Document the change in `docs/ARCHITECTURE.md` "Routing & Layout" and `docs/MAINTENANCE.md` "Theming and visual tokens".
+   - Update the existing `theme.spec.ts` so the "first paint matches prefers-color-scheme" assertion is replaced by "first paint is `light` regardless of `prefers-color-scheme` when no `localStorage.theme` is set", plus assertions that the toggle can reach all three themes and that each persists across reload.
+   - Update `tests/a11y/homepage.spec.ts` and `tests/a11y/pages.spec.ts` to run the axe scan once per theme on at least Home, Resume, and Contact, so every palette stays AA-compliant.
+   - Update the catalog entry for `<ThemeToggle>` in `docs/MAINTENANCE.md`, refresh the token table to include the warm theme column, and call out the changed first-paint behavior.
 
 Testing:
 
 - Unit tests for the content loader, including schema-violation cases.
 - Snapshot test for the case study layout.
 - E2E: open `/projects`, filter by "API Testing", click into the API Automation Framework, verify case study sections render.
-- a11y scans on `/projects` and one project detail page.
+- a11y scans on `/projects` and one project detail page, **plus the multi-theme scan added by task 9 above**.
 - Visual baseline (Playwright screenshot) on `/projects` and one detail page. Pin browser to Chromium, viewport to 1280x800 desktop and 390x844 mobile, and disable animations in the test profile. Baselines are stored under `tests/e2e/__screenshots__/` and regenerated only with `npx playwright test --update-snapshots` accompanied by a `CHANGELOG.md` entry explaining the visual change. CI runs visuals in a Linux container to match the snapshot platform; local macOS runs use `--ignore-snapshots` unless the developer regenerates intentionally.
 
 Documentation:
@@ -217,6 +226,7 @@ Exit criteria:
 
 - Three projects live with full case studies.
 - Filtering works with and without JavaScript.
+- Three themes ship (slate light default, slate dark, warm amber). First paint is always `light` for users with no stored preference. `make a11y` passes the WCAG AA scan once per theme on Home, Resume, and Contact.
 - All tests green; visual baselines committed.
 
 ---

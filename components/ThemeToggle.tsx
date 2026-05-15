@@ -2,12 +2,25 @@
 
 import { useSyncExternalStore } from "react";
 
-type Theme = "light" | "dark";
+type Theme = "light" | "dark" | "warm";
+
+const themes: ReadonlyArray<{
+  value: Theme;
+  label: string;
+  glyph: string;
+}> = [
+  { value: "light", label: "Light theme", glyph: "☀" },
+  { value: "dark", label: "Dark theme", glyph: "☾" },
+  { value: "warm", label: "Warm theme", glyph: "✦" },
+];
+
+function isTheme(value: string | null): value is Theme {
+  return value === "light" || value === "dark" || value === "warm";
+}
 
 function getClientSnapshot(): Theme {
   const current = document.documentElement.getAttribute("data-theme");
-  if (current === "light" || current === "dark") return current;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return isTheme(current) ? current : "light";
 }
 
 function getServerSnapshot(): Theme {
@@ -33,25 +46,38 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeToggle() {
-  const theme = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
-
-  function toggle() {
-    applyTheme(theme === "dark" ? "light" : "dark");
-  }
-
-  const label = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
+  const active = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={label}
-      title={label}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-accent)]"
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className="inline-flex items-center gap-0.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5"
     >
-      <span aria-hidden suppressHydrationWarning>
-        {theme === "dark" ? "☀" : "☾"}
-      </span>
-    </button>
+      {themes.map((t) => {
+        const isActive = t.value === active;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            aria-label={t.label}
+            title={t.label}
+            onClick={() => applyTheme(t.value)}
+            className={
+              "inline-flex h-7 w-7 items-center justify-center rounded text-sm transition-colors " +
+              (isActive
+                ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-accent)]")
+            }
+          >
+            <span aria-hidden suppressHydrationWarning>
+              {t.glyph}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

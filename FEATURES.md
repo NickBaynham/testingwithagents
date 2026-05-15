@@ -41,3 +41,15 @@ Current shipped capabilities of testingwithagents.com.
 - Recruiter-journey Playwright spec covers Home -> Resume -> Contact -> LinkedIn, plus sitemap.xml / robots.txt / canonical-and-OG meta-tag verification.
 
 Phase 1 MVP skeleton (Commits A + B + C) complete. Recruiter, hiring-manager, and peer journeys land on real pages with consistent identity, navigation, theming, accessibility, and discoverability.
+
+## Phase 2 (in progress)
+
+### Theme system upgrade
+
+- Three themes shipping: **Light** (default, slate + deep-cyan), **Dark** (opt-in, slate + cyan-400), **Warm** (opt-in, white background + slate text + amber-700 accent). All three pass WCAG AA contrast on every shipped route.
+- First paint is always **Light** regardless of OS `prefers-color-scheme`. Users opt in to dark or warm via the toggle; the choice persists in `localStorage`.
+- `<ThemeToggle>` is a three-option segmented control (`role="radiogroup"`) with one keyboard-accessible radio per theme.
+
+### Phase 2 remaining
+
+See `plan/plan.md` and `TODO.md` for the project content model, `/projects` index, case-study route, three initial projects, and OG image generator.

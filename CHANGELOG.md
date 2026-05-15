@@ -4,6 +4,16 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 2 - Theme system upgrade
+
+- Added a third theme, **warm** - pure white background, slate text, amber-700 accent (`#b45309`, ~6.2:1 on white). Selector `[data-theme="warm"]` in `app/globals.css`. Borders stay slate-200 so cards do not compete with the amber accent; `--color-surface-muted` is amber-100 (`#fef3c7`).
+- **Default first paint is now `light`** regardless of OS `prefers-color-scheme`. The no-FOUC bootstrap script in `app/layout.tsx` reads `localStorage.theme` and falls back to `"light"`; users explicitly opt in to dark or warm via `<ThemeToggle>` and the choice persists.
+- `<ThemeToggle>` reshaped from a binary cycle to a three-option segmented control (`role="radiogroup"` with one `role="radio"` per theme). Active theme reports `aria-checked="true"`. Still uses `useSyncExternalStore` so React 19's `react-hooks/set-state-in-effect` rule passes.
+- `components/RecruiterSummary.tsx` no longer uses Tailwind's `prose` plugin - it set its own `--tw-prose-body` palette that did not follow `data-theme`, breaking AA contrast in dark mode. Replaced with direct token-driven styling via attribute selectors on the MDX children. AA verified for all three themes.
+- `tests/a11y/homepage.spec.ts` and `tests/a11y/pages.spec.ts` now run axe once per theme (light / dark / warm) using `page.addInitScript` to set `localStorage.theme` **before** page load - setting `data-theme` after navigation triggers a CSS transition and axe samples mid-blend. Total a11y assertions: 4 routes x 3 themes x 2 viewports = 24, all green.
+- `tests/e2e/theme.spec.ts` rewritten: first-paint assertion is now "light when no `localStorage.theme` is set" (was "matches `prefers-color-scheme`"). Added assertions that each of the three themes can be selected, persists across reload, and that `aria-checked` updates accordingly. `tests/unit/theme-toggle.test.tsx` covers the new radiogroup contract.
+- `docs/ARCHITECTURE.md` Routing & Layout and Design Tokens sections updated. `docs/MAINTENANCE.md` palette table now has a Warm column, the `<ThemeToggle>` catalog entry reflects the segmented-control contract, and the troubleshooting note about Tailwind `prose` ignoring `data-theme` is captured.
+
 ### Phase 1 - MVP Skeleton (Commit C)
 
 - SEO baseline shipped end-to-end. `app/layout.tsx` `metadata` now sets the title template, description, default canonical, Open Graph (`type: website`, site name, title, description, url, locale), and Twitter card (`summary_large_image`). Each `app/<route>/page.tsx` exports its own `title`, `description`, and `alternates.canonical`. With `trailingSlash: true` the emitted canonical href ends with `/`.

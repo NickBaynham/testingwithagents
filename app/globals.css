@@ -2,10 +2,15 @@
 @plugin "@tailwindcss/typography";
 
 /*
-  Design tokens.
-  Palette: slate neutrals + deep-cyan accent.
-  Theme: data-theme="light|dark" on <html>, set by the no-FOUC script in
-  app/layout.tsx. Falls back to prefers-color-scheme on first paint.
+  Design tokens. Three themes:
+    - light (default) - slate neutrals + deep-cyan accent.
+    - dark            - slate neutrals + cyan-400 accent.
+    - warm            - white background + slate text + amber-700 accent.
+
+  First paint is always `light` unless the visitor has explicitly stored a
+  preference. The no-FOUC bootstrap script in app/layout.tsx sets the
+  `data-theme` attribute before the body paints; the same attribute drives
+  the selectors below.
 */
 
 :root,
@@ -37,25 +42,18 @@
   --color-focus-ring: #67e8f9; /* cyan-300 */
 }
 
-/*
-  Default to prefers-color-scheme when no explicit data-theme is set.
-  The no-FOUC script sets data-theme before paint; this is the fallback
-  during the very first paint in environments where JS is disabled.
-*/
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --color-bg: #0f172a;
-    --color-surface: #1e293b;
-    --color-surface-muted: #0b1220;
-    --color-border: #334155;
-    --color-text: #e2e8f0;
-    --color-text-muted: #cbd5e1;
-    --color-text-subtle: #94a3b8;
-    --color-accent: #22d3ee;
-    --color-accent-hover: #67e8f9;
-    --color-accent-fg: #0f172a;
-    --color-focus-ring: #67e8f9;
-  }
+[data-theme="warm"] {
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #fef3c7; /* amber-100 */
+  --color-border: #e2e8f0; /* slate-200, kept neutral so cards don't compete with amber accent */
+  --color-text: #0f172a; /* slate-900 */
+  --color-text-muted: #334155; /* slate-700 */
+  --color-text-subtle: #475569; /* slate-600 */
+  --color-accent: #b45309; /* amber-700, ~6.2:1 on white, ~5.4:1 on amber-100 */
+  --color-accent-hover: #92400e; /* amber-800 */
+  --color-accent-fg: #ffffff;
+  --color-focus-ring: #d97706; /* amber-600 */
 }
 
 @theme inline {

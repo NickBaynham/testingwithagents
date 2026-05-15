@@ -46,15 +46,17 @@ export const metadata: Metadata = {
 };
 
 /*
-  Runs before paint to set data-theme. Reads localStorage first, then
-  prefers-color-scheme. Inlined to avoid a flash of the wrong theme.
+  Runs before paint to set data-theme. Reads localStorage; falls back to
+  'light' regardless of prefers-color-scheme so the slate-light palette is
+  the canonical first impression. Inlined to avoid a flash of the wrong
+  theme. See docs/MAINTENANCE.md "Theming and visual tokens" for the
+  rationale.
 */
 const themeBootstrap = `
 (function () {
   try {
     var stored = localStorage.getItem('theme');
-    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');
+    var theme = stored === 'light' || stored === 'dark' || stored === 'warm' ? stored : 'light';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (_) {
     document.documentElement.setAttribute('data-theme', 'light');

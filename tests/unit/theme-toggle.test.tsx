@@ -1,51 +1,44 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 describe("ThemeToggle", () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-    document.documentElement.removeAttribute("data-theme");
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      })),
-    });
+  it("renders a radiogroup with three theme options", () => {
+    render(<ThemeToggle />);
+    const group = screen.getByRole("radiogroup", { name: /theme/i });
+    expect(group).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /light theme/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /dark theme/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /warm theme/i })).toBeInTheDocument();
   });
 
-  it("toggles data-theme on the document element when clicked", async () => {
+  it("marks the currently active theme with aria-checked=true", () => {
+    document.documentElement.setAttribute("data-theme", "warm");
+    render(<ThemeToggle />);
+    expect(screen.getByRole("radio", { name: /warm theme/i })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("radio", { name: /light theme/i })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  it("clicking a theme updates data-theme and localStorage", async () => {
     const user = userEvent.setup();
     render(<ThemeToggle />);
 
-    const button = await screen.findByRole("button", { name: /switch to dark theme/i });
-    await user.click(button);
-
+    await user.click(screen.getByRole("radio", { name: /dark theme/i }));
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-  });
-
-  it("persists the selected theme to localStorage", async () => {
-    const user = userEvent.setup();
-    render(<ThemeToggle />);
-
-    const button = await screen.findByRole("button", { name: /switch to dark theme/i });
-    await user.click(button);
-
     expect(window.localStorage.getItem("theme")).toBe("dark");
-  });
 
-  it("flips back from dark to light on a second click", async () => {
-    const user = userEvent.setup();
-    document.documentElement.setAttribute("data-theme", "dark");
-    render(<ThemeToggle />);
+    await user.click(screen.getByRole("radio", { name: /warm theme/i }));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("warm");
+    expect(window.localStorage.getItem("theme")).toBe("warm");
 
-    const button = await screen.findByRole("button", { name: /switch to light theme/i });
-    await user.click(button);
-
+    await user.click(screen.getByRole("radio", { name: /light theme/i }));
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     expect(window.localStorage.getItem("theme")).toBe("light");
   });

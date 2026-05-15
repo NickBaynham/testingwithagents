@@ -30,7 +30,7 @@ Set in Phase 4. CSP uses a per-request nonce issued by Next.js middleware; inlin
 
 App Router under `app/`. The root layout (`app/layout.tsx`) wraps every route with:
 
-1. A no-FOUC inline `themeBootstrap` script (loaded via `next/script` with `strategy="beforeInteractive"`) that reads `localStorage.theme` -> `prefers-color-scheme` and sets `data-theme` on `<html>` before paint.
+1. A no-FOUC inline `themeBootstrap` script (loaded via `next/script` with `strategy="beforeInteractive"`) that reads `localStorage.theme` and sets `data-theme` on `<html>` before paint. **Default is `light`** when no entry is stored; `prefers-color-scheme` is intentionally not consulted so the slate-light palette is the canonical first impression.
 2. `<SkipLink>` as the first focusable element in `<body>`, targeting `#main`.
 3. `<Nav>` (sticky, client component for active-route detection via `usePathname`).
 4. `<main id="main">` containing the route subtree.
@@ -42,18 +42,19 @@ Site-wide content (name, role, tagline, email, social links, primary nav) lives 
 
 ## Design Tokens
 
-Palette: slate neutrals + deep-cyan accent. Defined as CSS custom properties under `:root, [data-theme="light"]` and `[data-theme="dark"]` blocks in `app/globals.css`, then re-declared inside an `@theme inline` block so Tailwind v4 utilities can reference them.
+Palette: three themes share an eleven-token vocabulary defined as CSS custom properties in `app/globals.css`, then re-declared inside an `@theme inline` block so Tailwind v4 utilities can reference them.
 
-Light / dark resolution order at first paint (without JS):
+- **Light** (default): slate neutrals + deep-cyan accent. Selectors: `:root, [data-theme="light"]`.
+- **Dark**: slate neutrals + cyan-400 accent. Selector: `[data-theme="dark"]`.
+- **Warm**: white background + slate text + amber-700 accent. Selector: `[data-theme="warm"]`.
 
-1. `[data-theme="light"]` or `[data-theme="dark"]` selectors win when the bootstrap script has run.
-2. The `:root:not([data-theme])` fallback inside a `prefers-color-scheme: dark` media query covers JS-disabled users.
+First-paint resolution: the no-FOUC bootstrap script sets `data-theme` from `localStorage.theme`, falling back to `"light"` if absent. The CSS no longer relies on a `prefers-color-scheme` fallback - users explicitly opt in to dark or warm via `<ThemeToggle>` and the choice persists.
 
-Tokens fall into four families - background surfaces (`--color-bg`, `--color-surface`, `--color-surface-muted`), borders (`--color-border`), text (`--color-text`, `--color-text-muted`, `--color-text-subtle`), accent (`--color-accent`, `--color-accent-hover`, `--color-accent-fg`, `--color-focus-ring`). The full table with hex values and WCAG-AA notes is in `docs/MAINTENANCE.md` under "Theming and visual tokens".
+Tokens fall into four families - background surfaces (`--color-bg`, `--color-surface`, `--color-surface-muted`), borders (`--color-border`), text (`--color-text`, `--color-text-muted`, `--color-text-subtle`), accent (`--color-accent`, `--color-accent-hover`, `--color-accent-fg`, `--color-focus-ring`). The full table with hex values and per-theme contrast notes is in `docs/MAINTENANCE.md` under "Theming and visual tokens".
 
 Type scale: Tailwind v4 defaults, surfaced through `@theme` so they can be overridden centrally. Font stack uses `next/font/google` to load Geist Sans + Geist Mono with `display: "swap"`.
 
-A change to any token must keep the homepage and footer combinations above WCAG AA contrast. `make a11y` enforces this; the historical tightest pair is light-mode text-subtle (`#475569`) on `--color-surface-muted` (`#f1f5f9`).
+A change to any token must keep WCAG AA contrast in **all three themes**. `make a11y` enforces this; the historical tightest pairs are light-mode text-subtle on `--color-surface-muted`, and any element that uses Tailwind's typography plugin (`prose`) - the plugin sets its own `--tw-prose-*` palette that ignores `data-theme`, so components that need theme-aware prose styling must override the relevant `--tw-prose-*` variables or style directly without `prose` (see `components/RecruiterSummary.tsx` for the pattern).
 
 ## SEO
 

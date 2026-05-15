@@ -41,30 +41,30 @@ Tokens live in `app/globals.css`. Two layers:
 
 Token vocabulary:
 
-| Token | Light | Dark | Used for |
-| --- | --- | --- | --- |
-| `--color-bg` | slate-50 | slate-900 | Page background |
-| `--color-surface` | white | slate-800 | Cards, buttons, raised panels |
-| `--color-surface-muted` | slate-100 | near-black | Footer, subtle backgrounds |
-| `--color-border` | slate-200 | slate-700 | Borders, dividers |
-| `--color-text` | slate-900 | slate-200 | Headings, primary body |
-| `--color-text-muted` | slate-700 | slate-300 | Secondary body (passes WCAG AA on every surface) |
-| `--color-text-subtle` | slate-600 | slate-400 | Tertiary text, footer copy (passes WCAG AA on every surface) |
-| `--color-accent` | cyan-700 | cyan-400 | Links, primary CTA, brand eyebrow |
-| `--color-accent-hover` | cyan-800 | cyan-300 | Accent hover state |
-| `--color-accent-fg` | white | slate-900 | Text on accent backgrounds |
-| `--color-focus-ring` | cyan-600 | cyan-300 | `:focus-visible` outline |
+| Token | Light (default) | Dark | Warm | Used for |
+| --- | --- | --- | --- | --- |
+| `--color-bg` | slate-50 | slate-900 | white | Page background |
+| `--color-surface` | white | slate-800 | white | Cards, buttons, raised panels |
+| `--color-surface-muted` | slate-100 | near-black | amber-100 | Footer, subtle backgrounds |
+| `--color-border` | slate-200 | slate-700 | slate-200 | Borders, dividers |
+| `--color-text` | slate-900 | slate-200 | slate-900 | Headings, primary body |
+| `--color-text-muted` | slate-700 | slate-300 | slate-700 | Secondary body (passes WCAG AA on every surface) |
+| `--color-text-subtle` | slate-600 | slate-400 | slate-600 | Tertiary text, footer copy (passes WCAG AA on every surface) |
+| `--color-accent` | cyan-700 | cyan-400 | amber-700 | Links, primary CTA, brand eyebrow |
+| `--color-accent-hover` | cyan-800 | cyan-300 | amber-800 | Accent hover state |
+| `--color-accent-fg` | white | slate-900 | white | Text on accent backgrounds |
+| `--color-focus-ring` | cyan-600 | cyan-300 | amber-600 | `:focus-visible` outline |
 
-When you swap a color, check WCAG AA contrast on all surfaces. The accessibility scan (`make a11y`) will catch regressions but it's faster to verify with a contrast checker first.
+When you swap a color, check WCAG AA contrast on **all three themes** on all surfaces. The accessibility scan (`make a11y`) runs axe once per theme on Home, Resume, Contact and About; the historical tight pairs are `--color-text-subtle` on `--color-surface-muted` and accent links inside paragraph copy. It is faster to verify with a contrast checker first.
 
-### How light / dark switching works
+### How theme switching works
 
-- `<html>` carries a `data-theme="light"` or `data-theme="dark"` attribute.
-- The no-FOUC bootstrap script in `app/layout.tsx` sets the attribute before paint, reading (in order): `localStorage.theme`, then `prefers-color-scheme`.
-- `<ThemeToggle>` flips the attribute on click and writes the new value to `localStorage`.
-- CSS uses `:root:not([data-theme])` plus a `prefers-color-scheme: dark` media query as a last-resort fallback for first paint when JavaScript is disabled.
+- `<html>` carries a `data-theme="light"`, `data-theme="dark"`, or `data-theme="warm"` attribute.
+- The no-FOUC bootstrap script in `app/layout.tsx` sets the attribute before paint, reading `localStorage.theme`. **If no entry exists, the theme is always `light`** regardless of OS `prefers-color-scheme` - the slate-light palette is the canonical first impression.
+- `<ThemeToggle>` is a three-option `role="radiogroup"` with a radio per theme. Clicking a radio flips the attribute on `<html>` and writes the new value to `localStorage`.
+- Tests that need to scan a specific theme via Playwright should use `page.addInitScript` to write `localStorage.theme` **before** the page loads; setting `data-theme` after load triggers a CSS transition and axe will sample mid-blend.
 
-To make a route default to one theme regardless of preference, set `data-theme` on the route's wrapper element. Don't disable the toggle - users override the default.
+To make a route default to one theme regardless of stored preference, set `data-theme` on the route's wrapper element. Don't disable the toggle - users override the default.
 
 ## Component catalog
 
@@ -86,7 +86,7 @@ Server component. Renders copyright (year is computed at build time), the taglin
 
 ### `components/ThemeToggle.tsx`
 
-Client component. Uses `useSyncExternalStore` to mirror the `data-theme` attribute on `<html>`. Click flips the value and persists to `localStorage`. The button label and `aria-label` track current state. No props.
+Client component. A three-option segmented control (`role="radiogroup"`) with one `role="radio"` per theme (Light, Dark, Warm). Uses `useSyncExternalStore` to mirror the `data-theme` attribute on `<html>` so React 19's `react-hooks/set-state-in-effect` rule still passes. Click a radio to set the theme; the new value is written to `localStorage` and the active radio reports `aria-checked="true"`. No props.
 
 If a future feature needs to read the current theme outside the toggle, prefer adding a `useTheme()` hook that calls the same `useSyncExternalStore`; do not duplicate the snapshot logic.
 
