@@ -48,11 +48,13 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes e
 ## Phase 2 (in progress)
 
 - [x] Theme system upgrade: default to slate-light regardless of `prefers-color-scheme`, keep slate-dark as opt-in, add warm theme (white + amber-700). `<ThemeToggle>` is now a three-option radiogroup. Axe scans run per-theme on Home, About, Resume, Contact.
-- [ ] `content/projects/*.mdx` with Zod-validated frontmatter.
-- [ ] `/projects` index with category/tech filters (progressive enhancement).
-- [ ] `/projects/[slug]` case-study template.
-- [ ] Three MVP projects: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework.
-- [ ] Open Graph image generator.
+- [x] `content/projects/*.mdx` with Zod-validated frontmatter (`lib/content/projects.ts`).
+- [x] `/projects` index with Category + Technology filter rows. Filter state in URL, progressively enhanced.
+- [x] `/projects/[slug]` case-study route with the 11-section template.
+- [x] Three MVP projects: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework.
+- [x] Per-project Open Graph image generator (`app/projects/[slug]/opengraph-image.tsx`).
+- [ ] Visual baselines (Playwright screenshots) on `/projects` and one detail page (deferred - requires Linux CI to generate stable baselines; will land in a Phase 2 follow-up commit when CI runs the screenshot regen).
+- [ ] Case-study layout snapshot test (deferred alongside the visual baseline work).
 
 ## Phase 6 (deferred from Phase 2 MVP)
 

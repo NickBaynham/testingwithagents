@@ -1,0 +1,98 @@
+---
+title: "Agentic Testing Workflow Prototype"
+slug: "agentic-testing-workflow"
+summary: "An AI agent that helps with test generation, maintenance, and triage - with explicit guardrails and a human in the loop."
+categories:
+  - "Agentic Workflows"
+  - "AI-Assisted Testing"
+technologies:
+  - "TypeScript"
+  - "Claude API"
+  - "Playwright"
+  - "MCP"
+status: "Prototype"
+order: 2
+featured: true
+---
+
+## Overview
+
+An end-to-end agentic workflow for automated testing: the agent proposes
+test cases, drafts Playwright specs, maintains selectors as the app
+evolves, and summarizes failures. A human reviews every proposed change
+before it lands. The point is to compress the boring parts of test
+maintenance, not to replace the engineer's judgment.
+
+## Problem
+
+Automated test suites rot. Selectors break, expectations drift, flaky
+tests get muted. The maintenance burden grows faster than the test
+coverage. Asking an agent to "just generate more tests" makes this worse;
+the right surface for AI is the maintenance loop, not the generation
+front.
+
+## Users
+
+QA engineers and SDETs on a team with a substantial Playwright or Cypress
+suite. Engineering managers evaluating where AI actually buys them
+something in the testing lifecycle.
+
+## Goals
+
+- Reduce time-to-fix for a broken selector by a factor that is large
+  enough to be visible in sprint metrics.
+- Surface test-quality regressions (flakiness, slowness, redundant
+  coverage) without requiring a dedicated human triage role.
+- Keep every agent action reviewable and reversible.
+
+## Architecture
+
+<Diagram caption="Agent loop: observe -> propose -> human review -> apply -> verify">
+  Test run output and source code -> agent observation step -> proposed change
+  set -> human review UI -> apply via PR -> verification run.
+</Diagram>
+
+The agent runs on the Claude API with structured tool calls. An MCP server
+exposes the test repository and the failing-run artifacts. Proposed
+changes are emitted as a structured diff plus a natural-language rationale
+the reviewer reads first.
+
+## Technologies
+
+<TechList items={["TypeScript", "Claude API", "MCP", "Playwright", "GitHub Actions"]} />
+
+## Testing Strategy
+
+The agent's behavior is itself tested. A fixture of historical
+test-run-and-fix pairs is replayed; the agent must propose a change that
+falls within an accepted set of solutions, with a similar rationale shape.
+Regression on that fixture fails CI.
+
+## AI Role
+
+The agent makes proposals only. It does not commit, deploy, or merge. Its
+actions are constrained to a finite set of tool calls. Rate of approval by
+the human reviewer is tracked as a quality signal - low approval rates
+mean the prompt or the toolset need work.
+
+## Challenges
+
+- Selector "fixes" that hide a real product regression. Mitigation: the
+  agent flags when a fix changes observable behavior; the human reviewer
+  is asked to confirm.
+- Over-confidence in agent output during a long failing-run. Mitigation:
+  fixed sample size of failing cases per cycle, never an unbounded loop.
+
+## Results
+
+A working prototype that resolves the common "selector drifted" case with
+a single-click approval on most reviewer-validated incidents. Failure
+summaries are dense enough that the team treats them as the first read on
+a broken CI run.
+
+## Next Steps
+
+- Wire the agent into the [Universal Testing Language](/projects/universal-testing-language/)
+  authoring path so generated tests live at the right abstraction layer.
+- Expand the fixture corpus and start tracking approval rates over time.
+- Open-source the harness once the guardrails harden.

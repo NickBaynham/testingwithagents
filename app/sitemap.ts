@@ -1,22 +1,34 @@
 import type { MetadataRoute } from "next";
+import { getAllProjects } from "@/lib/content/projects";
 import { site } from "@/lib/site-config";
 
 // Required when `output: "export"` is set in next.config.ts.
 export const dynamic = "force-static";
 
 /*
-  Static-export sitemap. Routes are listed explicitly so a new page only
-  ships once it is intentional. Add an entry when a new route lands; the
-  CI build emits /sitemap.xml.
+  Static-export sitemap. Static routes are listed explicitly so a new
+  page only ships once it is intentional; project detail routes are
+  enumerated dynamically from content/projects/*.mdx. CI build emits
+  /sitemap.xml.
 */
-const routes = ["/", "/about", "/resume", "/contact"] as const;
+const staticRoutes = ["/", "/about", "/resume", "/contact", "/projects"] as const;
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
-  return routes.map((path) => ({
-    url: new URL(path, site.url).toString(),
-    lastModified,
-    changeFrequency: "monthly",
-    priority: path === "/" ? 1 : 0.7,
-  }));
+  const projects = await getAllProjects();
+
+  return [
+    ...staticRoutes.map((path) => ({
+      url: new URL(path, site.url).toString(),
+      lastModified,
+      changeFrequency: "monthly" as const,
+      priority: path === "/" ? 1 : 0.7,
+    })),
+    ...projects.map((p) => ({
+      url: new URL(`/projects/${p.slug}`, site.url).toString(),
+      lastModified,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
+  ];
 }

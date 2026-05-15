@@ -11,9 +11,11 @@ How to change things on testingwithagents.com without re-deriving the architectu
 | Home hero copy or CTAs | `app/page.tsx` | [Common content edits](#common-content-edits) |
 | About page sections | `app/about/page.tsx` | [Common content edits](#common-content-edits) |
 | Resume page body | `content/resume/resume.mdx` | [Common content edits](#common-content-edits) and [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) |
-| Recruiter summary text (Home, About, Resume) | `content/recruiter-summary.mdx` | [Common content edits](#common-content-edits) |
+| Recruiter summary text (Home, About, Resume, Projects) | `content/recruiter-summary.mdx` | [Common content edits](#common-content-edits) |
 | Contact channels (email, LinkedIn, GitHub) | `lib/site-config.ts` + `app/contact/page.tsx` for notes | [Common content edits](#common-content-edits) |
 | 404 page copy | `app/not-found.tsx` | [Common content edits](#common-content-edits) |
+| Add or edit a project case study | `content/projects/<slug>.mdx` | [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) "Authoring a Project" |
+| Mark a project as featured on Home | `content/projects/<slug>.mdx` frontmatter (`featured: true`) | [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) "Authoring a Project" |
 | Accent color or any palette token | `app/globals.css` (`:root[data-theme="..."]`) | [Theming and visual tokens](#theming-and-visual-tokens) |
 | Default theme behavior (light/dark fallback) | `app/layout.tsx` (`themeBootstrap`) | [Theming and visual tokens](#theming-and-visual-tokens) |
 | What `<Nav>` / `<Footer>` / `<ThemeToggle>` actually do | `components/` | [Component catalog](#component-catalog) |
@@ -113,6 +115,26 @@ Renders `content/resume/resume.mdx` inside a `prose prose-slate` article. Above 
 ### `app/contact/page.tsx` - Contact
 
 Three contact-channel cards (Email, LinkedIn, GitHub) defined in a local `channels` array. Each card has a label, the contact handle, and a one-line note about expected response. URLs come from `lib/site-config.ts`. The footer mentions a Phase 6 scheduling link; no form today.
+
+### `lib/content/projects.ts` - project content loader
+
+Zod-validated loader for `content/projects/*.mdx`. Exports `projectFrontmatterSchema`, `getAllProjects`, `getFeaturedProjects`, `getProjectBySlug`, `getProjectSlugs`, plus `CATEGORIES` and `STATUSES` enums consumed by the index page. An invalid frontmatter fails `make build` with a per-file error. To add a project, see `docs/CONTENT_GUIDE.md` "Authoring a Project".
+
+### `app/projects/page.tsx` and `components/ProjectsBrowser.tsx` - projects index
+
+Server component (`page.tsx`) loads all projects and the technology list, then passes them to the client component (`ProjectsBrowser`). The browser renders two filter rows (Category, Technology) plus a card grid. Filter state lives in the URL (`?category=...&tech=...`) so a filtered view is shareable; without JavaScript, the full grid still renders.
+
+### `app/projects/[slug]/page.tsx` - case-study detail route
+
+Dynamic route. `generateStaticParams` enumerates every project slug at build time. The MDX body is loaded via a slug-based dynamic import. Frontmatter drives the H1, summary, status badge, categories list, technology list, and the optional repository link. Body MDX is rendered inside `prose prose-slate` with per-element token overrides so all three themes pass WCAG AA.
+
+### `app/projects/[slug]/opengraph-image.tsx` - per-project OG image
+
+Build-time `ImageResponse` generator. Produces a 1200x630 PNG per project with the title and summary on a slate background. The image becomes the Open Graph preview when a project URL is shared.
+
+### `components/mdx/Diagram.tsx`, `TechList.tsx`, `RepoLink.tsx` - MDX building blocks
+
+Available globally in MDX via `mdx-components.tsx`. `Diagram` renders a captioned figure (dashed-bordered placeholder when no `src`); `TechList` renders a row of pill tags; `RepoLink` renders a bordered call-to-action link to a repository. Each follows the design tokens so it works in all three themes without per-component theme logic.
 
 ## Adding a nav link or footer link
 

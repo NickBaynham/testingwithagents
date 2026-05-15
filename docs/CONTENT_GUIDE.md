@@ -9,9 +9,14 @@ How to add and update site content. Grows phase by phase.
 - `content/resume/resume.mdx` - resume (Phase 1).
 - `content/recruiter-summary.mdx` - shared recruiter summary block (Phase 1).
 
-## Frontmatter (target)
+## Frontmatter
 
-To be filled in as Phase 2/3 define the schemas for projects and blog posts. Each content type will be validated at build time with Zod; build fails on schema violations.
+| Content type | Schema location | Loader |
+| --- | --- | --- |
+| Project | `lib/content/projects.ts` (`projectFrontmatterSchema`) | `getAllProjects()`, `getProjectBySlug()`, `getFeaturedProjects()` |
+| Blog post (Phase 3) | not yet defined | not yet defined |
+
+Each content type is validated at build time with Zod. An invalid file fails `make build`; the loader names the file and the violating field so the fix is obvious.
 
 ## Editing the Recruiter Summary
 
@@ -44,9 +49,54 @@ Render rules:
 - Inline links automatically get the accent color and an underline via the `prose-a` styles in `app/resume/page.tsx`.
 - After editing, `make build` confirms MDX still parses; `make a11y` confirms contrast on any new color or section.
 
-## Authoring a Project (Phase 2)
+## Authoring a Project
 
-To be filled in.
+1. Create `content/projects/<slug>.mdx`. The filename slug must match the `slug` field in the frontmatter (the loader enforces this).
+2. Frontmatter (validated against `projectFrontmatterSchema` in `lib/content/projects.ts`):
+
+   ```yaml
+   ---
+   title: "Universal Testing Language"        # required, plain string
+   slug: "universal-testing-language"         # required, kebab-case, matches filename
+   summary: "One-line elevator pitch."       # required, plain string
+   categories:                                # required, at least one
+     - "Automation Frameworks"               # must come from the CATEGORIES enum
+     - "AI-Assisted Testing"
+   technologies:                              # required, at least one free-form string
+     - "TypeScript"
+     - "Playwright"
+   status: "Concept"                          # required: Concept | Prototype | Active | Archived
+   repoUrl: "https://github.com/..."         # optional, must be a valid URL if present
+   coverImage: "/projects/utl/cover.png"     # optional, served from public/ if present
+   order: 1                                   # required, non-negative integer; lower = earlier on /projects
+   featured: true                             # optional, defaults to false; surfaces on Home
+   ---
+   ```
+
+3. Body sections (case-study template). Use these `##` headings in this order so every project tells the same story:
+
+   - `## Overview`
+   - `## Problem`
+   - `## Users`
+   - `## Goals`
+   - `## Architecture` (include a `<Diagram caption="..." />` block)
+   - `## Technologies` (use `<TechList items={[...]} />`)
+   - `## Testing Strategy`
+   - `## AI Role` - where AI helps and where humans stay in control
+   - `## Challenges`
+   - `## Results`
+   - `## Next Steps`
+
+4. Optional MDX components (auto-imported via `mdx-components.tsx`):
+
+   - `<Diagram caption="...">` - dashed-bordered placeholder or `<Diagram src="..." caption="...">` for a real image.
+   - `<TechList items={["A", "B"]} />` - row of pill-style tags.
+   - `<RepoLink href="https://github.com/..." label="View repo" />` - styled repo CTA.
+   - `<RecruiterSummary />` - mounts the shared block; do not use inside the case-study body, the page already renders it where appropriate.
+
+5. Run `make build` to confirm the schema validates and the route generates. Run `make e2e` to confirm filters and detail navigation still work. Run `make a11y` if a new color or image lands.
+
+The Home "Featured projects" section automatically renders the top three projects by `featured: true`, sorted by `order`.
 
 ## Authoring a Blog Post (Phase 3)
 

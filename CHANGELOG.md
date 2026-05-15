@@ -4,6 +4,20 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 2 - Projects, case studies, OG images
+
+- New `lib/content/projects.ts`: Zod-validated content loader for `content/projects/*.mdx`. Strict schema (`title`, `slug` kebab-case matching filename, `summary`, `categories` from a fixed enum, `technologies`, `status`, optional `repoUrl` / `coverImage`, `order`, `featured`). Build fails with a per-file error on invalid frontmatter. Helper functions `getAllProjects`, `getFeaturedProjects`, `getProjectBySlug`, `getProjectSlugs`.
+- New `/projects` index (`app/projects/page.tsx` + `components/ProjectsBrowser.tsx`): server component loads project data, client component renders Category + Technology filter rows. Filter state lives in the URL (`?category=...&tech=...`) so filtered views are shareable; without JavaScript the full grid still renders.
+- New `/projects/[slug]` case-study detail route. Uses `generateStaticParams` to pre-render all three projects at build. Frontmatter drives the H1, summary, status badge, categories/technologies metadata, and optional repo link. MDX body renders inside `prose prose-slate` with per-element token overrides so all three themes pass WCAG AA.
+- New MDX building blocks under `components/mdx/`: `<Diagram>` (placeholder or image), `<TechList items={...} />`, `<RepoLink href={...} />`. Registered globally via `mdx-components.tsx` alongside `<RecruiterSummary>`.
+- Three flagship projects authored under `content/projects/`: **Universal Testing Language**, **Agentic Testing Workflow Prototype**, **API Automation Framework**. Each follows the full case-study template (Overview / Problem / Users / Goals / Architecture / Technologies / Testing Strategy / AI Role / Challenges / Results / Next Steps).
+- Home "Featured projects" section now loads the top three featured projects from the content loader instead of the placeholder paragraph.
+- Per-project Open Graph images via `app/projects/[slug]/opengraph-image.tsx` (`next/og` `ImageResponse`, 1200x630 PNG, generated at build time for every project slug).
+- `app/sitemap.ts` now emits the `/projects` index plus every project detail route alongside the static routes.
+- New tests: `tests/e2e/projects.spec.ts` (index renders three cards, category and technology filters narrow the list, clicking a card opens the case study, Home featured links match `/projects/[slug]/` shape, sitemap includes project routes) and `tests/a11y/projects.spec.ts` (axe on `/projects` and one detail page x light/dark/warm themes x desktop/mobile = 12 assertions). Unit tests for the Zod schema and `parseProjectSource` cover valid frontmatter, unknown categories, empty technologies, invalid slugs, strict-mode rejection, and slug/filename mismatch.
+- `lychee.toml`: removed `/projects` from the placeholder excludes now that the route exists.
+- `docs/CONTENT_GUIDE.md`: filled in the "Authoring a Project" section with the full frontmatter spec, case-study section list, and the MDX building blocks. `docs/MAINTENANCE.md`: added catalog entries for the new loader, page, browser, detail route, OG image generator, and MDX components; refreshed the quick-reference table with project edit recipes.
+
 ### Phase 2 - Theme system upgrade
 
 - Added a third theme, **warm** - pure white background, slate text, amber-700 accent (`#b45309`, ~6.2:1 on white). Selector `[data-theme="warm"]` in `app/globals.css`. Borders stay slate-200 so cards do not compete with the amber accent; `--color-surface-muted` is amber-100 (`#fef3c7`).

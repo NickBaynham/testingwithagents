@@ -50,6 +50,16 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. Recruiter, hiring-manager, an
 - First paint is always **Light** regardless of OS `prefers-color-scheme`. Users opt in to dark or warm via the toggle; the choice persists in `localStorage`.
 - `<ThemeToggle>` is a three-option segmented control (`role="radiogroup"`) with one keyboard-accessible radio per theme.
 
+### Projects index, case studies, OG images
+
+- `content/projects/*.mdx` is the source of truth for case studies. Frontmatter is validated by Zod at build time; build fails with a per-file error on schema violations.
+- `/projects` index lists every project with Category and Technology filter chips. Filter state persists in the URL so filtered views are shareable; the page degrades gracefully without JavaScript.
+- `/projects/[slug]` case-study detail pages follow an 11-section template (Overview, Problem, Users, Goals, Architecture, Technologies, Testing Strategy, AI Role, Challenges, Results, Next Steps).
+- Three flagship projects live: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework.
+- Per-project Open Graph images generated at build time via `next/og` `ImageResponse` (1200x630 PNG per project slug).
+- Home "Featured projects" automatically surfaces the top three projects marked `featured: true`, sorted by `order`.
+- Sitemap includes every project detail route.
+
 ### Phase 2 remaining
 
-See `plan/plan.md` and `TODO.md` for the project content model, `/projects` index, case-study route, three initial projects, and OG image generator.
+See `plan/plan.md` and `TODO.md`. Pending: visual baselines (Playwright screenshots) for `/projects` and one detail page; small case-study layout snapshot test.

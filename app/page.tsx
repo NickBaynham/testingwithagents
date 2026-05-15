@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { RecruiterSummary } from "@/components/RecruiterSummary";
+import { getFeaturedProjects } from "@/lib/content/projects";
 import { site } from "@/lib/site-config";
 
 type Cta = { label: string; href: string; emphasis?: boolean };
@@ -11,7 +12,9 @@ const primaryCtas: readonly Cta[] = [
   { label: "Contact Me", href: "/contact" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const featured = await getFeaturedProjects(3);
+
   return (
     <div className="mx-auto max-w-5xl px-6">
       <section aria-labelledby="hero-heading" className="py-16 sm:py-24">
@@ -70,10 +73,35 @@ export default function Home() {
             All projects &rarr;
           </Link>
         </div>
-        <p className="mt-3 text-[var(--color-text-muted)]">
-          The portfolio lands in Phase 2. Expect a Universal Testing Language, an agentic testing
-          workflow prototype, and an API automation framework.
-        </p>
+        {featured.length === 0 ? (
+          <p className="mt-3 text-[var(--color-text-muted)]">
+            The portfolio lands in Phase 2. Add an MDX file under{" "}
+            <code className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-sm">
+              content/projects/
+            </code>{" "}
+            with{" "}
+            <code className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-sm">
+              featured: true
+            </code>{" "}
+            to surface it here.
+          </p>
+        ) : (
+          <ul className="mt-6 grid gap-4 sm:grid-cols-3">
+            {featured.map((p) => (
+              <li key={p.slug}>
+                <Link
+                  href={`/projects/${p.slug}/`}
+                  className="block h-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
+                >
+                  <h3 className="text-base font-semibold tracking-tight text-[var(--color-text)]">
+                    {p.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">{p.summary}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section

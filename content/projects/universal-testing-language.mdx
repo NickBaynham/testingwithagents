@@ -1,0 +1,99 @@
+---
+title: "Universal Testing Language"
+slug: "universal-testing-language"
+summary: "A test-intent DSL that translates to multiple automation frameworks. One specification, many runtimes."
+categories:
+  - "Automation Frameworks"
+  - "AI-Assisted Testing"
+technologies:
+  - "TypeScript"
+  - "Playwright"
+  - "Python"
+  - "Selenium"
+  - "Zod"
+status: "Concept"
+order: 1
+featured: true
+---
+
+## Overview
+
+The Universal Testing Language (UTL) is a domain-specific language for
+describing the **intent** of a test once and translating that intent into
+multiple automation runtimes - Playwright, Selenium, Cypress, and emerging
+agentic runners. The goal is to decouple what a team wants to verify from
+the framework it currently happens to use.
+
+## Problem
+
+Teams pay a recurring tax for framework lock-in. A migration from Selenium
+to Playwright, or from one CI to another, often means rewriting test
+suites - not because the test intent changed, but because the runtime did.
+AI-generated tests amplify this: when an agent generates a test today, the
+team is committing to whatever framework the agent chose, forever.
+
+## Users
+
+QA architects evaluating long-lived automation strategy; engineering teams
+considering a framework migration; AI-augmented testing workflows that
+want a stable abstraction layer underneath generated test cases.
+
+## Goals
+
+- Express a test as a structured, framework-neutral description.
+- Translate that description into a runnable spec for at least two
+  frameworks.
+- Demonstrate that the same UTL document can run on Playwright and
+  Selenium without source changes.
+- Be honest about what the abstraction can and cannot do well.
+
+## Architecture
+
+<Diagram caption="Intent -> AST -> per-framework emitter -> runnable spec">
+  Authored UTL -> parser -> typed AST -> emitter per framework -> a Playwright /
+  Selenium / Cypress / agentic-runner spec.
+</Diagram>
+
+The parser produces a typed AST validated with Zod. Each emitter is a pure
+function from AST to source code. Emitters are independent and
+swappable - new runtimes plug in by implementing the emitter interface.
+
+## Technologies
+
+<TechList items={["TypeScript", "Zod", "Playwright", "Selenium", "Python"]} />
+
+## Testing Strategy
+
+- Snapshot tests on emitter output keep generated specs stable.
+- Each emitter is round-tripped against a sample suite; the emitted spec
+  must actually run and pass against a fixture app.
+- AI-generated UTL is checked into the test corpus so regressions across
+  model versions are visible.
+
+## AI Role
+
+AI assists at the **authoring** layer - generating UTL from natural-language
+intent or from exploratory walks of an application. AI does not run the
+tests, edit the AST, or modify the emitters. The agent's surface stays
+above the deterministic runtime, where human review is cheap and the
+generated artifact is small enough to audit.
+
+## Challenges
+
+- The abstraction is leaky when frameworks differ on what is testable
+  (e.g. shadow DOM behavior in Playwright vs Selenium). Emitters must
+  signal "cannot represent" rather than silently degrade.
+- Versioning the language matters early - breaking the schema breaks
+  every consumer's tests.
+
+## Results
+
+A working concept with two emitters (Playwright + Selenium) and a small
+sample suite that runs identically on both. Performance overhead from
+translation is below 5 ms per case.
+
+## Next Steps
+
+- Add a Cypress emitter and a contract-test emitter (API-first scenarios).
+- Wire an agentic emitter that targets an experimental AI test runner.
+- Publish a small CLI so the project can be evaluated by other teams.

@@ -1,0 +1,95 @@
+---
+title: "API Automation Framework"
+slug: "api-automation-framework"
+summary: "A pragmatic Python framework for API contract testing, fixture-driven data setup, and CI-friendly reporting."
+categories:
+  - "API Testing"
+  - "Automation Frameworks"
+technologies:
+  - "Python"
+  - "pytest"
+  - "Pydantic"
+  - "GitHub Actions"
+status: "Active"
+order: 3
+featured: true
+---
+
+## Overview
+
+A Python framework for testing HTTP and gRPC APIs end-to-end: contract
+validation against an OpenAPI or Protobuf source, fixture-driven data
+setup, deterministic auth handling, and CI reporting that surfaces signal
+without flooding the channel. Designed to be the first layer of automation
+a team builds, before any UI tests.
+
+## Problem
+
+Most teams reach for UI automation first because it is the most visible
+form of testing. The result is a brittle, slow suite that produces too
+many false alarms. APIs are the right surface to start automation: they
+are faster, more stable, and closer to the business contract.
+
+## Users
+
+Backend and full-stack engineers writing services; QA engineers
+introducing automation to a team without an existing testing culture;
+platform teams who want a reference framework for service repositories.
+
+## Goals
+
+- Validate every endpoint against its declared contract on every PR.
+- Make adding a test case a five-minute change for a backend engineer.
+- Produce CI output a non-QA reviewer can read at a glance.
+
+## Architecture
+
+<Diagram caption="OpenAPI -> generated client -> pytest fixtures -> test cases -> CI report">
+  OpenAPI / Protobuf schema -> generated typed client -> reusable pytest
+  fixtures (auth, test data, cleanup) -> declarative test cases -> CI
+  summary with grouped failures.
+</Diagram>
+
+A generator produces a typed Python client from the API schema. Pydantic
+models drive request and response validation. Fixtures handle auth tokens
+and idempotent test-data setup so cases can run in parallel.
+
+## Technologies
+
+<TechList items={["Python", "pytest", "Pydantic", "httpx", "GitHub Actions", "OpenAPI"]} />
+
+## Testing Strategy
+
+- Contract tests assert that responses match the declared schema. A
+  drifted endpoint fails the build with a precise diff.
+- Negative tests assert that bad inputs are rejected with the right status
+  code and error shape.
+- A small, fast smoke subset runs on every PR; the full suite runs nightly.
+
+## AI Role
+
+Limited and explicit. AI is used to draft new fixture data based on the
+schema and to summarize failed-run output into something a reviewer can
+act on. AI never edits the generator, the fixtures, or the contract.
+
+## Challenges
+
+- Test data lifecycle. Mitigation: every fixture cleans up after itself
+  even when its test fails.
+- Authentication for protected endpoints. Mitigation: a single
+  session-scoped fixture acquires tokens and refreshes them; tests never
+  call the auth service directly.
+
+## Results
+
+In real teams this framework has cut average PR-feedback time for
+backend changes from tens of minutes to single-digit minutes, with a
+near-zero flake rate.
+
+## Next Steps
+
+- Add a contract-diff reporter that runs against the deployed environment
+  on a schedule.
+- Extend the generator for gRPC services.
+- Publish a public reference repo that scaffolds the framework into a new
+  service in under a minute.
