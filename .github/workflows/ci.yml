@@ -122,7 +122,11 @@ jobs:
       - name: lychee link check
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --config ./lychee.toml ./**/*.md ./out/**/*.html
+          # --root-dir is required so root-relative links in out/*.html
+          # (e.g. /about/, /_next/...) resolve against the static export
+          # directory rather than failing with "Cannot convert path ... to
+          # a URI". Mirrors the docker-compose lychee invocation.
+          args: --config ./lychee.toml --root-dir ./out ./**/*.md ./out/**/*.html
           fail: true
 
   deploy:
