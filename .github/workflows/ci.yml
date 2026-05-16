@@ -143,6 +143,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
       - name: Trigger Amplify release
+        id: release
         env:
           AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
         run: |
@@ -155,6 +156,8 @@ jobs:
           code=$?
           echo "$out"
           if [ $code -eq 0 ]; then
+            job_id=$(echo "$out" | python3 -c "import sys,json; print(json.load(sys.stdin)['jobSummary']['jobId'])" 2>/dev/null || echo "")
+            echo "job_id=$job_id" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if echo "$out" | grep -q "LimitExceededException"; then
@@ -162,3 +165,43 @@ jobs:
             exit 0
           fi
           exit $code
+      - name: Wait for Amplify build to finish
+        if: steps.release.outputs.job_id != ''
+        env:
+          AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+          JOB_ID: ${{ steps.release.outputs.job_id }}
+        run: |
+          # Poll Amplify until the build settles. 15-minute ceiling.
+          for i in $(seq 1 30); do
+            status=$(aws amplify get-job --app-id "$AMPLIFY_APP_ID" --branch-name main --job-id "$JOB_ID" --query 'job.summary.status' --output text)
+            echo "Amplify job $JOB_ID status: $status"
+            case "$status" in
+              SUCCEED) exit 0 ;;
+              FAILED|CANCELLED) exit 1 ;;
+            esac
+            sleep 30
+          done
+          echo "Amplify job $JOB_ID did not settle within 15 minutes." >&2
+          exit 1
+
+  post-deploy-smoke:
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium chromium-headless-shell
+      - name: Run live smoke + security-headers specs
+        env:
+          # The canonical preview / production URL for main. Update via the
+          # AMPLIFY_LIVE_URL repo variable when the custom domain lands in
+          # Phase 5.
+          LIVE_URL: ${{ vars.AMPLIFY_LIVE_URL || 'https://main.d2f2x4ij8pxn6g.amplifyapp.com' }}
+          SECURITY_HEADERS_URL: ${{ vars.AMPLIFY_LIVE_URL || 'https://main.d2f2x4ij8pxn6g.amplifyapp.com' }}
+          CI: "true"
+        run: npx playwright test tests/e2e/post-deploy-smoke.spec.ts tests/e2e/security-headers.spec.ts --project=chromium-desktop

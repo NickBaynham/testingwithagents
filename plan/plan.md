@@ -113,10 +113,14 @@ Tasks:
 6. Add lychee link checker config.
 7. Author the `Makefile` with the targets above.
 8. Add `docker-compose.yml` with services for lychee and a local Plausible container for development.
-9. Configure GitHub Actions: jobs for lint, typecheck, unit, e2e, a11y, build, linkcheck, and a `deploy` job that triggers an AWS Amplify release on push to `main` (via OIDC-assumed IAM role; `aws amplify start-job`). Block merges on red.
+9. Configure GitHub Actions: jobs for lint, typecheck, unit, e2e, a11y, build, linkcheck, and a `deploy` job that triggers an AWS Amplify release on push to `main` (via OIDC-assumed IAM role; `aws amplify start-job`). The deploy step **must** be idempotent against `LimitExceededException` so a concurrent Amplify build (manual console click, hot-fix in flight) does not fail CI. Add a `post-deploy-smoke` job that runs after `deploy` against the live Amplify URL and exercises `tests/e2e/post-deploy-smoke.spec.ts` + `tests/e2e/security-headers.spec.ts`. Block merges on red.
 10. Create `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/CONTENT_GUIDE.md`, `docs/DEPLOYMENT.md` (stubs that grow per phase).
 11. Initialize `CHANGELOG.md`, `FEATURES.md`, `TODO.md`.
-12. Create the AWS Amplify Hosting app, connect it to the GitHub repo, configure the build spec (`amplify.yml`) for Next.js static export, enable branch auto-deploys, and verify a preview deploy of a feature branch succeeds. Record the `AMPLIFY_APP_ID` in `docs/DEPLOYMENT.md`. **Override the Amplify default customRule** that ships with new apps - it rewrites every unknown path to `/index.html` with status `404-200`, which serves the homepage body for every non-existent route. Replace it with `source: "/<*>", target: "/404.html", status: "404"` so static-export `out/404.html` is what users actually see. The exact `aws amplify update-app --custom-rules` invocation lives in `docs/DEPLOYMENT.md`.
+12. Create the AWS Amplify Hosting app, connect it to the GitHub repo, configure the build spec (`amplify.yml`) for Next.js static export, and verify a preview deploy of a feature branch succeeds. Record the `AMPLIFY_APP_ID` in `docs/DEPLOYMENT.md`. The full reconciliation between Amplify defaults and a static-export site lives in `docs/DEPLOYMENT.md` "Common deploy failures"; the canonical Phase 0 list of *app-level* configuration steps (each is a one-line `aws amplify` call) is:
+    - **Override the default customRule.** Replace `{ source: "/<*>", target: "/index.html", status: "404-200" }` (default) with `{ source: "/<*>", target: "/404.html", status: "404" }` so `out/404.html` is what users see on unknown paths.
+    - **Disable webhook auto-build on `main`.** `aws amplify update-branch --no-enable-auto-build`. Makes the GH Actions `deploy` job the single canonical trigger.
+    - **Apply security headers via app config.** Use `aws amplify update-app --custom-headers ...` (the `customHeaders:` block in `amplify.yml` is silently ignored). Six headers required: `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Cross-Origin-Opener-Policy`.
+    - **Install Playwright browsers in preBuild.** Amplify's build image does not ship them. `amplify.yml` preBuild runs `npx playwright install chromium chromium-headless-shell`; the cache block keeps the binary across builds.
 13. Decide MDX integration approach (`@next/mdx` vs `next-mdx-remote`) and document the choice + RSC compatibility caveats in `docs/ARCHITECTURE.md`.
 14. Verify Tailwind v4 plugin compatibility (especially `@tailwindcss/typography`); pin versions accordingly.
 
@@ -125,7 +129,8 @@ Exit criteria:
 - `make install`, `make config`, `make build`, `make test`, `make run-docker`, and `make ci` all succeed locally.
 - GitHub Actions CI pipeline green on PR; the `deploy` job runs and triggers an Amplify release on push to `main`.
 - Amplify preview URL reachable for the feature branch.
-- `curl -I https://<branch>.<app>.amplifyapp.com/` returns `HTTP/2 200` and the body byte-length matches `out/index.html`; `curl https://<branch>.<app>.amplifyapp.com/this-route-does-not-exist` returns the body of `out/404.html` (not `out/index.html`). A Playwright `not-found` spec under `tests/e2e/` enforces this against the local test server.
+- `curl -I https://<branch>.<app>.amplifyapp.com/` returns `HTTP/2 200` and the body byte-length matches `out/index.html`; `curl https://<branch>.<app>.amplifyapp.com/this-route-does-not-exist` returns the body of `out/404.html` (not `out/index.html`).
+- The `post-deploy-smoke` job in `.github/workflows/ci.yml` runs `tests/e2e/post-deploy-smoke.spec.ts` against the live Amplify URL after every deploy and **must be green**. It covers: homepage 200 + correct title, unknown route returns the 404 body, six security headers present, OG images serve as `image/png`, `/resume.pdf` serves as `application/pdf`, sitemap lists every route. This is the regression net for every issue catalogued in `docs/DEPLOYMENT.md` "Common deploy failures".
 
 ---
 
