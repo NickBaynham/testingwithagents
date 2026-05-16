@@ -98,6 +98,28 @@ Render rules:
 
 The Home "Featured projects" section automatically renders the top three projects by `featured: true`, sorted by `order`.
 
-## Authoring a Blog Post (Phase 3)
+## Authoring a Blog Post
 
-To be filled in.
+1. Create `content/blog/<slug>.mdx`. The filename slug must match the `slug` field in the frontmatter (the loader enforces this).
+2. Frontmatter (validated against `postFrontmatterSchema` in `lib/content/blog.ts`):
+
+   ```yaml
+   ---
+   title: "Software testing for the agentic era"
+   slug: "software-testing-for-the-agentic-era"     # kebab-case, matches filename
+   excerpt: "What stays the same and what changes." # one-line summary
+   publishedAt: "2026-05-12"                         # YYYY-MM-DD, required
+   updatedAt: "2026-05-14"                           # YYYY-MM-DD, optional
+   categories:
+     - "Agentic Testing"                             # from POST_CATEGORIES enum
+   tags:
+     - "agents"                                      # free-form, at least one
+     - "strategy"
+   coverImage: "/blog/agentic-era/cover.png"        # optional, served from public/
+   ---
+   ```
+
+3. Body is plain MDX (markdown + JSX). Reading time is computed from word count by the `reading-time` package at build time and shown as "N min read" on the index and detail pages.
+4. The `/blog` index orders posts newest first by `publishedAt`. Related posts on the detail page are ranked by tag overlap with the current post; prev/next nav uses chronological order.
+5. The RSS feed (`/rss.xml`) and JSON feed (`/feed.json`) regenerate at build time and include every post automatically. The Home "Latest writing" section surfaces the three most recent posts.
+6. Run `make build` to confirm the schema validates and the route generates. Run `make e2e` for the full blog flow; `make a11y` for the contrast check on every theme.

@@ -1,0 +1,61 @@
+---
+title: "Why AI agents still need human testers"
+slug: "why-ai-agents-still-need-human-testers"
+excerpt: "The cases where current agents miss, why they miss, and the kind of judgment that does not transfer."
+publishedAt: "2026-05-08"
+categories:
+  - "Agentic Testing"
+  - "AI Risk"
+tags:
+  - "agents"
+  - "ai-in-qa"
+  - "judgment"
+---
+
+The pitch I see most often goes: "the agent can write the tests, so you do not need QA." This is wrong, and the way it is wrong matters. Current agents are surprisingly capable at the mechanics of testing and surprisingly weak at the judgment that decides which mechanics to apply.
+
+This post is about that gap.
+
+## Where agents are genuinely strong
+
+Credit where it is due. A modern coding agent is good at:
+
+- Drafting deterministic test cases when the intent is well-specified.
+- Maintaining selectors when a UI changes in obvious ways.
+- Summarizing failure logs into something a reviewer can act on.
+- Filling in negative-path cases when the schema is available.
+
+If you give a focused agent a list of API endpoints and an OpenAPI document, you can have a reasonable contract-test suite by lunch.
+
+## Where they reliably miss
+
+The patterns I see fail repeatedly:
+
+1. **What to skip.** Deciding *not* to test something - because the cost outweighs the value, because the integration boundary is unstable, or because the upstream change is temporary - requires context the agent does not have. Agents tend to generate full coverage when partial coverage is correct.
+2. **When the test is asking the wrong question.** A test that asserts a label says "Submit" is technically correct and strategically useless. Humans catch this because they know what the feature is *for*.
+3. **Why a flake is a flake.** Agents see the symptom (intermittent failure) and patch it (add a retry, widen a tolerance). Humans see the cause (race condition, leaky test data, real production issue). The patch and the cause are different problems.
+4. **What "done" looks like.** Quality is not a binary. The decision that a release is good enough is a balance of business risk, customer signal, and engineering confidence. Agents will optimize whatever metric you give them; they will not stop on their own.
+
+## The judgment that does not transfer
+
+The common thread is **judgment about what matters**. Testing is a series of small choices about where to spend attention. Those choices live in context the agent has no view of:
+
+- The customer support tickets from last quarter.
+- The post-mortem from the incident no one wants to repeat.
+- The product manager's actual priority list, not the one in the spec.
+- The honest assessment of which parts of the codebase nobody trusts.
+
+None of that is in the prompt. Until it is, the human tester is the one weighing it.
+
+## The right framing
+
+Agents do not eliminate the role; they redistribute it.
+
+- Less time on **mechanics** (writing the test).
+- More time on **strategy** (deciding what to test and why).
+- More time on **review** (catching the cases agents over-generate).
+- More time on **integration** (knitting test signals into something a team can act on).
+
+This is, in fact, a better job description than the one most QA engineers have today. The discipline becomes more strategic, more visible, and harder to outsource. The mechanical floor rises; the ceiling stays the same.
+
+The agent will not replace the QA engineer. It will replace the *least interesting parts* of their week. That is a feature, not a threat.

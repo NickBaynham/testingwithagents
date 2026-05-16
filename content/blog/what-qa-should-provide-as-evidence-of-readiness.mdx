@@ -1,0 +1,59 @@
+---
+title: "What QA should provide as evidence of readiness"
+slug: "what-qa-should-provide-as-evidence-of-readiness"
+excerpt: "A short list of things a quality engineer should be able to point at on a story before saying \"this is ready to ship.\""
+publishedAt: "2026-04-29"
+categories:
+  - "Quality Strategy"
+tags:
+  - "qa"
+  - "process"
+  - "release-readiness"
+---
+
+When a product manager asks "is it ready?", a quality engineer who only points at "the tests are green" is leaving most of their value on the table. Green tests are necessary; they are nowhere near sufficient. Below is the list I try to hand over with every story I sign off on.
+
+## 1. What the story was supposed to do
+
+The first thing on the evidence list is a one-paragraph restatement of the intent in my own words. If I cannot do that, I cannot evaluate readiness.
+
+This catches a surprising amount: cases where the implementation drifted from the spec, cases where the spec itself was ambiguous, cases where what shipped is correct but the story description is now wrong. None of those will be caught by tests.
+
+## 2. The behaviors I verified, and how
+
+A list of the user-facing behaviors, paired with the kind of verification:
+
+- Manual exploration, with notes.
+- Automated assertion at the API level.
+- Automated end-to-end check.
+- Schema or contract test.
+
+The point of writing them down is that the *gaps* become visible. If there are five user behaviors and three forms of verification, two behaviors are riding on faith. Faith is fine if the cost of failure is low; it is not fine if the feature is on the path to revenue.
+
+## 3. The negative-path cases I deliberately did not test
+
+This one surprises some people. There are always cases I did not write tests for. The discipline is to be honest about which:
+
+- Invalid input shapes where the upstream is a trusted internal client.
+- Failure modes of dependencies that are already covered upstream.
+- Edge cases for inputs that cannot reach the code path in production.
+
+Naming the *did not test* set is itself a quality signal. It says "I thought about it and decided." The opposite is what happens by default.
+
+## 4. The risk that remains
+
+A short paragraph: if this ships and a defect surfaces, what is the most likely shape? "A user with a non-ASCII email address could see the wrong label" is much more useful than "everything looks good." It tells the on-call engineer where to look first.
+
+This is the part that turns QA from a gatekeeper into a partner. Risk is a fact of life; pretending it does not exist is what makes engineering teams stop listening to quality.
+
+## 5. The signal I will watch after release
+
+Concrete: which dashboard, alarm, log query, or customer-feedback channel I will check in the first 48 hours, and what would prompt a rollback.
+
+If the answer is "none", the work is not done. Release is not the end of testing; it is the start of the highest-resolution test available - the real users.
+
+---
+
+This list takes about ten minutes to fill out. It transforms the "is it ready?" conversation from a single bit (yes / no) into a structured handover. Product managers, engineering managers, and customer support all get more out of that handover than they do from a passing CI run, and the team that produces it is treated differently in conversations about release scope.
+
+The mechanical part of testing is becoming cheaper every quarter. The thinking part is what differentiates a quality engineer now, and that is what this evidence list is designed to make visible.

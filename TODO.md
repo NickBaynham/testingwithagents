@@ -61,10 +61,16 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes e
 - Playwright Automation Project (req section 7.4).
 - Quality Intelligence Dashboard (req section 7.5).
 
-## Phase 3 (planned)
+## Phase 3 (done)
 
-- `content/blog/*.mdx` with reading-time, RSS feed (`/rss.xml`), JSON feed (`/feed.json`).
-- Four initial posts per req section 22.
+- [x] `content/blog/*.mdx` with Zod-validated frontmatter and reading-time computed at build (`lib/content/blog.ts`).
+- [x] `/blog` index with Category + Tag filter chips, RSS/JSON feed links, recruiter-summary block.
+- [x] `/blog/[slug]` detail route with byline, reading time, related posts (tag overlap), prev/next.
+- [x] RSS feed (`/rss.xml`) and JSON feed (`/feed.json`) generated at build.
+- [x] Four initial posts authored per requirements section 22.
+- [x] Home "Latest writing" wired to load the 3 most recent posts.
+- [x] Footer RSS link.
+- [x] Sitemap includes blog routes; `/blog` removed from `lychee.toml` excludes.
 
 ## Phase 4 (planned)
 

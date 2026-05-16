@@ -63,3 +63,13 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. Recruiter, hiring-manager, an
 ### Phase 2 remaining
 
 See `plan/plan.md` and `TODO.md`. Pending: visual baselines (Playwright screenshots) for `/projects` and one detail page; small case-study layout snapshot test.
+
+## Phase 3 (Blog and thought leadership)
+
+- `content/blog/*.mdx` is the source of truth for posts. Zod-validated frontmatter; reading time computed at build time.
+- `/blog` index with Category and Tag filter chips, RSS / JSON feed links, and the recruiter summary block.
+- `/blog/[slug]` post detail with author byline, publish date, reading time, related-posts section (tag-overlap ranking), and prev/next navigation.
+- Build-time `/rss.xml` (RSS 2.0) and `/feed.json` (JSON Feed 1.1).
+- Footer carries an RSS link; Home "Latest writing" surfaces the three most recent posts.
+- Four initial posts live: Software testing for the agentic era, Why AI agents still need human testers, Agentic engineering antipatterns, What QA should provide as evidence of readiness.
+- Sitemap includes every blog post route.

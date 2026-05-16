@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { RecruiterSummary } from "@/components/RecruiterSummary";
+import { getRecentPosts } from "@/lib/content/blog";
 import { getFeaturedProjects } from "@/lib/content/projects";
 import { site } from "@/lib/site-config";
 
@@ -12,8 +13,27 @@ const primaryCtas: readonly Cta[] = [
   { label: "Contact Me", href: "/contact" },
 ];
 
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  return `${months[m - 1]} ${d}, ${y}`;
+}
+
 export default async function Home() {
-  const featured = await getFeaturedProjects(3);
+  const [featured, recentPosts] = await Promise.all([getFeaturedProjects(3), getRecentPosts(3)]);
 
   return (
     <div className="mx-auto max-w-5xl px-6">
@@ -122,10 +142,31 @@ export default async function Home() {
             All posts &rarr;
           </Link>
         </div>
-        <p className="mt-3 text-[var(--color-text-muted)]">
-          The blog launches in Phase 3 with notes on agentic testing, the limits of AI in QA, and
-          what evidence a quality engineer should ship with a story.
-        </p>
+        {recentPosts.length === 0 ? (
+          <p className="mt-3 text-[var(--color-text-muted)]">
+            The blog launches in Phase 3. Add an MDX file under{" "}
+            <code className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-sm">
+              content/blog/
+            </code>{" "}
+            to surface it here.
+          </p>
+        ) : (
+          <ul className="mt-6 space-y-4">
+            {recentPosts.map((p) => (
+              <li key={p.slug}>
+                <Link href={`/blog/${p.slug}/`} className="group block">
+                  <h3 className="text-base font-semibold tracking-tight text-[var(--color-text)] group-hover:text-[var(--color-accent)]">
+                    {p.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">{p.excerpt}</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-subtle)]">
+                    {formatDate(p.publishedAt)} &middot; {p.readingTimeMinutes} min read
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section

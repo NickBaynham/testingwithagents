@@ -1,0 +1,59 @@
+---
+title: "Agentic engineering antipatterns"
+slug: "agentic-engineering-antipatterns"
+excerpt: "Five failure shapes I keep seeing when teams adopt AI agents in testing and tooling work."
+publishedAt: "2026-05-04"
+categories:
+  - "Agentic Testing"
+  - "AI Risk"
+tags:
+  - "agents"
+  - "antipatterns"
+  - "ai-in-qa"
+---
+
+A list of failure shapes I keep seeing as teams stand up agentic workflows inside their testing and tooling stacks. None of these are exotic; they are the same mistakes that show up in early adoption of any new tool, dressed in AI.
+
+## 1. The agent has no off switch
+
+Symptom: the agent runs on a schedule, opens PRs, the team approves most of them, and nobody knows how much of the codebase is now written by an agent versus by a human.
+
+What goes wrong: nothing yet, until something does. The first incident-of-record is the one where the team spends a day reverse-engineering whether the agent added the line that caused the regression.
+
+Fix: every agent action lives behind a feature flag the team can flip in seconds, and every agent-authored change carries a marker (commit trailer, label, comment) that a human can search for.
+
+## 2. The agent owns the test it wrote
+
+Symptom: a test fails. The team's first instinct is "let the agent fix it." The agent edits the test until it passes. Coverage trends look fine.
+
+What goes wrong: the agent will preferentially loosen the assertion, since loosening is the lowest-cost path to green. The product regression the failing test was originally catching is now invisible.
+
+Fix: when an agent's proposed fix touches an assertion (vs. a selector or a fixture), require a human signoff that says "yes, the expected behavior changed." Make that explicit in the review template.
+
+## 3. The agent's prompt is a black box
+
+Symptom: the agent works well. Nobody can articulate why. The prompt has accreted six months of fix-the-last-bug patches and is now 4,000 tokens of nested instructions.
+
+What goes wrong: when the agent regresses on a new model release, no one has a clean starting point to diff against. The team learns to fear the prompt the way they used to fear a legacy regex.
+
+Fix: version-control the prompt with a CHANGELOG. Pin the model. Treat both the same way you treat any other dependency.
+
+## 4. The metric becomes the product
+
+Symptom: the agent is judged by "lines of test code generated per week." The number goes up. The team is happy.
+
+What goes wrong: this metric rewards tests-by-the-yard. The cheapest tests are the least valuable ones. Real coverage of the things customers care about does not move.
+
+Fix: pick a metric that does not lie. *Bugs caught before production*, or *time-to-fix on a known failure pattern*, or *fraction of agent-proposed changes that survive a human review*. These are harder to game.
+
+## 5. The agent is treated as an authority instead of a contributor
+
+Symptom: "the agent said the code is fine." Reviewers stop scrutinizing because the agent already did.
+
+What goes wrong: the agent is wrong some percentage of the time. The team's review skills decay precisely in the area where they should be most sharp.
+
+Fix: agent output is a *draft*. The reviewer is the deciding voice. This means investing in reviewer training and review tooling, not less. Counterintuitively, the more an agent contributes, the better the reviewers need to be.
+
+---
+
+These are not arguments against agentic engineering. They are arguments for taking it seriously enough to engineer the loop, not just plug in the agent. Most failures I see are not about model capability; they are about workflow.

@@ -16,6 +16,8 @@ How to change things on testingwithagents.com without re-deriving the architectu
 | 404 page copy | `app/not-found.tsx` | [Common content edits](#common-content-edits) |
 | Add or edit a project case study | `content/projects/<slug>.mdx` | [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) "Authoring a Project" |
 | Mark a project as featured on Home | `content/projects/<slug>.mdx` frontmatter (`featured: true`) | [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) "Authoring a Project" |
+| Add or edit a blog post | `content/blog/<slug>.mdx` | [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) "Authoring a Blog Post" |
+| Site name in RSS / JSON feed channel | `lib/site-config.ts` (`name`, `tagline`) | [Common content edits](#common-content-edits) |
 | Accent color or any palette token | `app/globals.css` (`:root[data-theme="..."]`) | [Theming and visual tokens](#theming-and-visual-tokens) |
 | Default theme behavior (light/dark fallback) | `app/layout.tsx` (`themeBootstrap`) | [Theming and visual tokens](#theming-and-visual-tokens) |
 | What `<Nav>` / `<Footer>` / `<ThemeToggle>` actually do | `components/` | [Component catalog](#component-catalog) |
@@ -127,6 +129,22 @@ Server component (`page.tsx`) loads all projects and the technology list, then p
 ### `app/projects/[slug]/page.tsx` - case-study detail route
 
 Dynamic route. `generateStaticParams` enumerates every project slug at build time. The MDX body is loaded via a slug-based dynamic import. Frontmatter drives the H1, summary, status badge, categories list, technology list, and the optional repository link. Body MDX is rendered inside `prose prose-slate` with per-element token overrides so all three themes pass WCAG AA.
+
+### `lib/content/blog.ts` - blog content loader
+
+Zod-validated loader for `content/blog/*.mdx`. Exports `postFrontmatterSchema`, `getAllPosts` (newest first), `getRecentPosts`, `getPostBySlug`, `getPostSlugs`, plus `findPrevNext` and `findRelatedPosts` (pure helpers consumed by tests) and their async wrappers `getPrevNext` and `getRelatedPosts`. Reading time is computed at load via the `reading-time` package and exposed as `readingTimeMinutes` on each post. An invalid frontmatter fails `make build` with a per-file error. To add a post, see `docs/CONTENT_GUIDE.md` "Authoring a Blog Post".
+
+### `app/blog/page.tsx` and `components/BlogIndexBrowser.tsx` - blog index
+
+Server component loads all posts and the tag list, then passes them to `BlogIndexBrowser` (client) for filter UI. Two filter rows (Category, Tag) using the same URL-state pattern as `ProjectsBrowser`. RSS and JSON feed links above the filter area; RecruiterSummary block sits above the post list.
+
+### `app/blog/[slug]/page.tsx` - post detail route
+
+Dynamic route. `generateStaticParams` enumerates every post slug. MDX body loaded via slug-based dynamic import. Page renders the post title, author byline, publish date, reading-time, the article body inside `prose prose-slate` (with per-element token overrides for all three themes), a "Related posts" section ranked by tag overlap, and prev/next navigation by `publishedAt`.
+
+### `app/rss.xml/route.ts` and `app/feed.json/route.ts` - blog feeds
+
+Build-time route handlers (`export const dynamic = "force-static"`) that emit `/rss.xml` (RSS 2.0) and `/feed.json` (JSON Feed 1.1). Both pull from `getAllPosts()` and include every post automatically; no per-post wiring needed.
 
 ### `components/mdx/Diagram.tsx`, `TechList.tsx`, `RepoLink.tsx` - MDX building blocks
 

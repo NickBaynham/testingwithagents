@@ -32,6 +32,11 @@ export function Footer() {
               Email
             </a>
           </li>
+          <li>
+            <a href="/rss.xml" className="hover:text-[var(--color-accent)]">
+              RSS
+            </a>
+          </li>
         </ul>
       </div>
     </footer>

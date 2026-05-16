@@ -7,4 +7,5 @@ public
 .claude
 test-results
 playwright-report
+content/**/*.mdx
 *.md

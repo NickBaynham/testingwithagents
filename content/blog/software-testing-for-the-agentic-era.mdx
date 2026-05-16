@@ -1,0 +1,46 @@
+---
+title: "Software testing for the agentic era"
+slug: "software-testing-for-the-agentic-era"
+excerpt: "What stays the same, what changes, and what to build first when AI agents start participating in the testing loop."
+publishedAt: "2026-05-12"
+categories:
+  - "Agentic Testing"
+tags:
+  - "agents"
+  - "strategy"
+  - "ai-in-qa"
+---
+
+I want to write this down before the phrase "agentic testing" gets reduced to a marketing slot. The agentic era is not arriving as one big release. It is a slow change in who is at the keyboard - and the most useful framing for engineers is to ask what stays the same, what changes, and what to build first.
+
+## What stays the same
+
+The fundamentals do not move.
+
+- **The reason tests exist.** A test is a piece of evidence about quality, written for a human reader. The reader is usually the next engineer who has to change the code. Agents do not change the reader.
+- **The cost of flakiness.** A flaky test does not become less expensive when an agent wrote it. If anything it gets worse, because the agent can generate flakes faster than humans can triage them.
+- **The boundary of responsibility.** A test failure that ships to production is on the team, not on the agent. Treat the agent as a contributor on a probationary period: useful, supervised, never the last reviewer.
+
+## What changes
+
+Three shifts are real.
+
+1. **The unit cost of writing a test drops sharply.** Drafting a Playwright case from an exploratory walk used to take a few minutes; with a good agent it takes seconds. The constraint moves to *which* tests are worth keeping.
+2. **Maintenance becomes the headline cost.** When generation is cheap, fleets of tests pile up. Selectors drift, environments change, expectations rot. The biggest leverage point is making the maintenance loop boring instead of dramatic.
+3. **The reviewer's job changes shape.** Instead of writing the test, the reviewer reads a proposal and decides whether it captures real intent. This is the right place for human judgment - it is exactly where automation tends to over-generalize.
+
+## What to build first
+
+If I had a quarter to invest in agentic testing inside one engineering org, I would not start with generation. I would start with three smaller things in this order:
+
+1. **A clean abstraction the agent writes against.** A domain-specific representation (or a stable API contract) that the agent can target without having to know which runtime is in use. This bounds the blast radius of bad output.
+2. **A maintenance loop the agent participates in.** Selector drift, broken fixtures, flaky timing - these are the tedious cases an agent can actually help with, and where the value is easiest to defend.
+3. **A failure summarizer.** Most automated suites produce more failure data than a team can read. Letting an agent write a one-paragraph summary of an overnight run is a near-instant return on investment.
+
+Generation is the headline feature, but it is the wrong place to start. The agent should be earning trust on the boring work first.
+
+## Why "agentic", not just "AI"
+
+I keep the word **agentic** because it captures a specific posture: the agent has a goal, takes actions, and reports back. That posture is what changes the workflow. The interesting question is not "can the model write a test?" - it is "what is the loop, who is in it, and what does the agent have authority to do without asking?"
+
+That is the question this site is going to keep returning to.

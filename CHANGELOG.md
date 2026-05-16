@@ -4,6 +4,19 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 3 - Blog and thought leadership
+
+- New `lib/content/blog.ts`: Zod-validated content loader for `content/blog/*.mdx`. Strict schema (`title`, `slug` kebab-case, `excerpt`, `publishedAt` YYYY-MM-DD, optional `updatedAt`, `categories` from a fixed enum, `tags`, optional `coverImage`). Build fails with a per-file error on schema violations. Reading time computed at load via the `reading-time` package and surfaced as `readingTimeMinutes`. Pure helpers `findPrevNext` and `findRelatedPosts` (by tag overlap) plus their async wrappers.
+- New `/blog` index (`app/blog/page.tsx` + `components/BlogIndexBrowser.tsx`): chronological list, Category and Tag filter rows, RSS / JSON feed links. Same URL-state filter pattern as `/projects` so filtered views are shareable; without JavaScript the full list still renders.
+- New `/blog/[slug]` post detail route. `generateStaticParams` enumerates every slug. Page renders title, author byline, publish date, reading-time, the MDX body inside `prose prose-slate` with per-element token overrides for all three themes, a "Related posts" section ranked by tag overlap, and a prev/next nav by `publishedAt`.
+- New build-time feeds: `app/rss.xml/route.ts` emits RSS 2.0; `app/feed.json/route.ts` emits JSON Feed 1.1. Both run at build time (`dynamic = "force-static"`), pull from `getAllPosts()`, and include every post automatically. Footer now carries an RSS link.
+- Four initial blog posts authored under `content/blog/`: **Software testing for the agentic era**, **Why AI agents still need human testers**, **Agentic engineering antipatterns**, **What QA should provide as evidence of readiness**.
+- Home "Latest writing" section now loads the three most recent posts from the loader instead of the placeholder copy.
+- `app/sitemap.ts` extended to enumerate every blog post route alongside the static and project routes.
+- Tests: `tests/unit/blog-loader.test.tsx` (14 cases - valid frontmatter, invalid date format, unknown category, empty tags, strict-mode rejection, slug mismatch, helpful error message, plus `findPrevNext` neighbors and `findRelatedPosts` ranking). `tests/e2e/blog.spec.ts` (index lists four posts newest first, category filter, click-through to post with related and prev/next visible, Home Latest writing renders three, rss.xml + feed.json validation, sitemap includes blog routes, footer RSS link). `tests/a11y/blog.spec.ts` (axe on `/blog` and one post x light/dark/warm x desktop/mobile = 12).
+- `lychee.toml`: removed `/blog` from placeholder excludes (route exists now).
+- A11y test refinement: `tests/a11y/blog.spec.ts` waits for `networkidle` and for the h1 to be visible before sampling - long-form post pages take a beat to paint and axe was occasionally sampling mid-render.
+
 ### Phase 2 - Projects, case studies, OG images
 
 - New `lib/content/projects.ts`: Zod-validated content loader for `content/projects/*.mdx`. Strict schema (`title`, `slug` kebab-case matching filename, `summary`, `categories` from a fixed enum, `technologies`, `status`, optional `repoUrl` / `coverImage`, `order`, `featured`). Build fails with a per-file error on invalid frontmatter. Helper functions `getAllProjects`, `getFeaturedProjects`, `getProjectBySlug`, `getProjectSlugs`.

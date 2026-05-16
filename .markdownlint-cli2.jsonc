@@ -9,5 +9,15 @@
     "MD060": false,
   },
   "globs": ["**/*.md"],
-  "ignores": ["node_modules", ".next", "out", "build", "requirements/**", "CLAUDE.md", "AGENTS.md"],
+  "ignores": [
+    "node_modules",
+    ".next",
+    "out",
+    "build",
+    "playwright-report/**",
+    "test-results/**",
+    "requirements/**",
+    "CLAUDE.md",
+    "AGENTS.md",
+  ],
 }
