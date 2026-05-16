@@ -5,6 +5,10 @@ frontend:
       commands:
         - nvm use 24
         - npm ci --no-audit --no-fund
+        # postbuild renders /resume to PDF via Playwright headless Chromium.
+        # Amplify's build image does not ship browsers; install on demand
+        # and rely on the cache below to keep subsequent builds fast.
+        - npx playwright install chromium
     build:
       commands:
         - npm run build
@@ -16,6 +20,7 @@ frontend:
     paths:
       - node_modules/**/*
       - .next/cache/**/*
+      - /root/.cache/ms-playwright/**/*
 customHeaders:
   # Security headers applied to every response served by Amplify Hosting.
   # Phase 4 task 8. With output: "export" there is no Next runtime to set
