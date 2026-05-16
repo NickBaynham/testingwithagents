@@ -2,7 +2,7 @@
   Build-time resume PDF generator.
 
   Phase 4 task 9. Renders the /resume route to a PDF via Playwright
-  headless print and writes the output to out/resume.pdf so the
+  headless Chromium and writes the output to out/resume.pdf so the
   `Download Resume` link works in production. Runs as a postbuild step
   after `next build`.
 
@@ -26,26 +26,50 @@ const URL = `http://127.0.0.1:${PORT}/resume/`;
 
 function startServe(): Promise<() => Promise<void>> {
   return new Promise((resolve, reject) => {
+    // detached: true lets us kill the entire process group with -pid,
+    // which catches any helper processes serve spawns.
     const proc = spawn("npx", ["serve", "out", "-l", `tcp://127.0.0.1:${PORT}`, "--no-clipboard"], {
       stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
     });
 
     let ready = false;
+    const startTimer = setTimeout(() => {
+      if (!ready) reject(new Error(`serve did not start on ${PORT} within 10s`));
+    }, 10_000);
+
     const onLine = (line: string) => {
       if (!ready && /Accepting connections/.test(line)) {
         ready = true;
+        clearTimeout(startTimer);
         resolve(async () => {
-          proc.kill("SIGTERM");
-          await new Promise<void>((r) => proc.on("exit", () => r()));
+          try {
+            // Kill the whole process group; npx may have wrapped serve in
+            // a shim that does not forward SIGTERM cleanly.
+            process.kill(-proc.pid!, "SIGTERM");
+          } catch {
+            /* group may already be gone */
+          }
+          await Promise.race([
+            new Promise<void>((r) => proc.on("exit", () => r())),
+            new Promise<void>((r) => setTimeout(r, 3_000)),
+          ]);
+          if (proc.exitCode === null) {
+            try {
+              process.kill(-proc.pid!, "SIGKILL");
+            } catch {
+              /* group may already be gone */
+            }
+          }
         });
       }
     };
     proc.stdout.on("data", (d: Buffer) => d.toString().split("\n").forEach(onLine));
     proc.stderr.on("data", (d: Buffer) => d.toString().split("\n").forEach(onLine));
-    proc.on("error", reject);
-    setTimeout(() => {
-      if (!ready) reject(new Error(`serve did not start on ${PORT} within 10s`));
-    }, 10_000);
+    proc.on("error", (err) => {
+      clearTimeout(startTimer);
+      reject(err);
+    });
   });
 }
 
@@ -74,7 +98,12 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Resume PDF generation failed:", err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    // Force exit so any stray Playwright / serve handles do not block CI.
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("Resume PDF generation failed:", err);
+    process.exit(1);
+  });
