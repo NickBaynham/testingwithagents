@@ -72,11 +72,19 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes e
 - [x] Footer RSS link.
 - [x] Sitemap includes blog routes; `/blog` removed from `lychee.toml` excludes.
 
-## Phase 4 (planned)
+## Phase 4 (done)
 
-- Structured data (JSON-LD): `Person`, `BlogPosting`, `CreativeWork`, `BreadcrumbList`.
-- Nonce-based CSP via middleware; HSTS, Referrer-Policy, Permissions-Policy.
-- Build-time resume PDF generated from `content/resume/resume.mdx` via Playwright headless print.
+- [x] Structured data (JSON-LD): `Person`, `BlogPosting`, `CreativeWork`, `BreadcrumbList`.
+- [x] Per-route Open Graph images via build-time PNG script (corrected fix for the Phase 2 rollback).
+- [x] Security headers via `amplify.yml customHeaders`: HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options, COOP.
+- [x] Build-time resume PDF from `content/resume/resume.mdx` via Playwright headless print.
+
+### Phase 4 deviations carried as follow-ups
+
+- **CSP**: deferred. Nonce CSP needs a runtime (incompatible with `output: "export"`); hash CSP needs automated SHA-256 regen on every `themeBootstrap` edit. Add when a hash-pinning hook is wired into the build.
+- **Visual baselines + case-study snapshot test**: still deferred from Phase 2 (requires Linux CI to generate stable baselines first).
+- **Sitemap lastmod from frontmatter**: blog uses `publishedAt`/`updatedAt`; project frontmatter has no `updatedAt` field today. Falls back to build time. Low priority.
+- **Image audit (AVIF/WebP)**: no shipped images yet beyond the OG PNGs. Revisit when cover images land.
 
 ## Phase 5 (planned)
 

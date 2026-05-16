@@ -42,6 +42,13 @@ Current shipped capabilities of testingwithagents.com.
 
 Phase 1 MVP skeleton (Commits A + B + C) complete. Recruiter, hiring-manager, and peer journeys land on real pages with consistent identity, navigation, theming, accessibility, and discoverability.
 
+## Phase 4 (SEO + OG + security + resume PDF)
+
+- **JSON-LD structured data** on every detail route: Person on Home + About, BreadcrumbList on detail pages, BlogPosting on posts, CreativeWork on projects.
+- **Per-route Open Graph images** generated at build time as 1200x630 PNGs under `public/og/` (default + one per project + one per post). Each page references its image with an explicit `.png` URL.
+- **Security headers** applied to every response by Amplify Hosting: HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options, Cross-Origin-Opener-Policy. (CSP deferred - see `docs/MAINTENANCE.md` troubleshooting note.)
+- **Resume PDF** generated at build time from the canonical `content/resume/resume.mdx` via Playwright headless print. Home CTA and `/resume` page link to `/resume.pdf`.
+
 ## Phase 2 (in progress)
 
 ### Theme system upgrade

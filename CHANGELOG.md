@@ -4,6 +4,17 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Phase 4 - SEO, OG images, security baseline, resume PDF
+
+- **Per-route Open Graph images (corrected fix).** `scripts/generate-og-images.tsx` is a build-time PNG generator (satori + @resvg/resvg-js + Inter 400/600 from `@fontsource/inter`) that emits `public/og/default.png` plus one PNG per project and per blog post with explicit `.png` extensions. Wired as `prebuild`. Each page's `metadata.openGraph.images` and `metadata.twitter.images` references the matching file. This replaces the Phase 2 rolled-back `opengraph-image.tsx` route handler, which hit an Amplify trailing-slash 301 on extensionless paths. Verified live URLs return `200 image/png` (test in `tests/e2e/og-images.spec.ts`, 14 assertions).
+- **Build-time resume PDF.** `scripts/generate-resume-pdf.tsx` runs as `postbuild`. Spins up `serve out` on port 4747, drives Playwright headless Chromium to `/resume/` with the light theme forced, prints to Letter-format PDF with 0.6" margins, and writes `out/resume.pdf`. PDF is a build artifact - regenerated on every deploy, never committed. Home "Download Resume" CTA and the Resume page's new "Download PDF" button both link at `/resume.pdf`. `/resume.pdf` removed from `lychee.toml` excludes. Test in `tests/e2e/resume-pdf.spec.ts` asserts the magic header, content-type, and size envelope.
+- **Security headers via `amplify.yml` customHeaders.** Static export has no Next runtime for headers, so the policy moves to Amplify Hosting. Applied to `**/*`: HSTS (`max-age=31536000; includeSubDomains; preload`), Referrer-Policy (`strict-origin-when-cross-origin`), Permissions-Policy (`camera=(), microphone=(), geolocation=(), interest-cohort=()`), X-Content-Type-Options (`nosniff`), X-Frame-Options (`DENY`), Cross-Origin-Opener-Policy (`same-origin`). CSP is intentionally deferred - nonce CSP needs a runtime; hash CSP needs automated regen on every `themeBootstrap` edit. Deviation documented in `plan/plan.md`, `docs/ARCHITECTURE.md`, and `docs/MAINTENANCE.md`.
+- **CTA reshape.** Home `View Resume` -> `Download Resume` (now that `/resume.pdf` actually exists). Resume page gains a `Download PDF` button. Resume MDX no longer carries the Phase 4 placeholder note. Recruiter-journey e2e updated to navigate via the Resume nav link instead of the now-downloading CTA, and asserts the new Download PDF link.
+
+### Phase 4 - JSON-LD structured data (shipped earlier in the phase as commit `7dca5a9`)
+
+- `lib/seo/structured-data.ts` builders (Person, BreadcrumbList, BlogPosting, CreativeWork), `<JsonLd>` renderer, wired on Home, About, every project, every post.
+
 ### Phase 3 - Blog and thought leadership
 
 - New `lib/content/blog.ts`: Zod-validated content loader for `content/blog/*.mdx`. Strict schema (`title`, `slug` kebab-case, `excerpt`, `publishedAt` YYYY-MM-DD, optional `updatedAt`, `categories` from a fixed enum, `tags`, optional `coverImage`). Build fails with a per-file error on schema violations. Reading time computed at load via the `reading-time` package and surfaced as `readingTimeMinutes`. Pure helpers `findPrevNext` and `findRelatedPosts` (by tag overlap) plus their async wrappers.

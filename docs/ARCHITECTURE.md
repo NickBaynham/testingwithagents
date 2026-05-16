@@ -66,4 +66,27 @@ Phase 1 baseline shipped:
 - Sitemap routes are enumerated explicitly so a new page only ships once it is intentional; add a path when a route lands.
 - Per-route Open Graph images via `ImageResponse` are deferred to Phase 2 (projects) and Phase 3 (blog); the global OG defaults apply to every page until then.
 
-Structured data (JSON-LD: `Person`, `BlogPosting`, `CreativeWork`, `BreadcrumbList`) lands in Phase 4 along with the security-header polish.
+### Structured data (Phase 4)
+
+`lib/seo/structured-data.ts` exports typed builders for `Person`, `BreadcrumbList`, `BlogPosting`, and `CreativeWork`. Each builder returns a plain JSON-LD object. `components/seo/JsonLd.tsx` wraps the objects in `<script type="application/ld+json">` blocks emitted into the prerendered HTML so crawlers see them without executing JavaScript. Wired on Home (Person), About (Person + BreadcrumbList), every blog post (BlogPosting + BreadcrumbList), and every project (CreativeWork + BreadcrumbList).
+
+### Per-route Open Graph images (Phase 4)
+
+`scripts/generate-og-images.tsx` runs as a `prebuild` step via `npm run build:og`. It uses `satori` to render a JSX card into SVG and `@resvg/resvg-js` to convert that SVG into a 1200x630 PNG. Outputs land at `public/og/default.png`, `public/og/projects/<slug>.png`, and `public/og/blog/<slug>.png`. Each route's `metadata.openGraph.images` and `metadata.twitter.images` point at the matching file with an explicit `.png` extension - this is the corrected fix for the Amplify trailing-slash bug from Phase 2 (the rolled-back `opengraph-image.tsx` route convention emitted extensionless paths). Fonts come from `@fontsource/inter` woff files; the script only needs Latin 400 + 600.
+
+### Security headers (Phase 4)
+
+Static export has no Next runtime to set headers via `next.config.ts`. Headers are configured in `amplify.yml` under `customHeaders`, applied to `**/*`:
+
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()`
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Cross-Origin-Opener-Policy: same-origin`
+
+`Content-Security-Policy` is intentionally absent for now: a nonce-based CSP requires a runtime (incompatible with `output: "export"`), and a hash-based CSP would need the `themeBootstrap` script's SHA-256 regenerated on every edit. Adding CSP with an automated hash-pinning step is a Phase 4 follow-up; until then we ship the rest of the security baseline. Documented in `plan/plan.md` Phase 4 task 8.
+
+### Resume PDF generation (Phase 4)
+
+`scripts/generate-resume-pdf.tsx` runs as a `postbuild` step. It starts `serve out` on an ephemeral port, navigates Playwright (headless Chromium) to `/resume/` with `data-theme="light"` forced via `addInitScript`, emulates print media, and writes a Letter-format PDF to `out/resume.pdf`. The PDF is a build artifact - not committed to git - so every deploy regenerates it from the canonical `content/resume/resume.mdx` source. Local Playwright tests pick up the PDF because they serve `out/`.

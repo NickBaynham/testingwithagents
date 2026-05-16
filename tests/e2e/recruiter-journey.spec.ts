@@ -6,10 +6,18 @@ test("recruiter journey: home -> resume -> contact -> LinkedIn link", async ({ p
   await expect(page.getByRole("heading", { level: 1, name: /Nick Baynham/i })).toBeVisible();
   await expect(page.getByText(/Software testing for the agentic era/i).first()).toBeVisible();
 
-  // 2. Click "View Resume" CTA in the hero, land on /resume/.
-  await page.getByRole("main").getByRole("link", { name: "View Resume" }).click();
+  // 2. Use the Resume nav link to land on /resume/ (the "Download Resume"
+  // hero CTA now points at /resume.pdf and triggers a download instead of
+  // a navigation).
+  await page.getByRole("banner").getByRole("link", { name: "Resume" }).click();
   await expect(page).toHaveURL(/\/resume\/$/);
   await expect(page.getByRole("heading", { level: 1, name: /Nick Baynham/i })).toBeVisible();
+
+  // The Resume page surfaces the Download PDF link.
+  await expect(page.getByRole("link", { name: "Download PDF" })).toHaveAttribute(
+    "href",
+    "/resume.pdf",
+  );
 
   // 3. Resume page surfaces the recruiter summary and contact button.
   await expect(page.getByRole("complementary", { name: /recruiter summary/i })).toBeVisible();

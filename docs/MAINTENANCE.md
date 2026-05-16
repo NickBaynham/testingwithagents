@@ -146,6 +146,18 @@ Dynamic route. `generateStaticParams` enumerates every post slug. MDX body loade
 
 Build-time route handlers (`export const dynamic = "force-static"`) that emit `/rss.xml` (RSS 2.0) and `/feed.json` (JSON Feed 1.1). Both pull from `getAllPosts()` and include every post automatically; no per-post wiring needed.
 
+### `lib/seo/structured-data.ts` and `components/seo/JsonLd.tsx`
+
+Typed JSON-LD builders for schema.org structured data: `personJsonLd()`, `breadcrumbListJsonLd(items)`, `blogPostingJsonLd(post)`, `creativeWorkJsonLd(project)`. `JsonLd` renders the result into the HTML as `<script type="application/ld+json">`. To add JSON-LD to a new route, import the helper and wrap a `<JsonLd data={...} />` (or `items={[...]}`) in the page's JSX. Crawlers pick the script up server-side; nothing runs on the client.
+
+### `scripts/generate-og-images.tsx` - per-route OG image generator
+
+Build-time PNG generator. Runs via `npm run build:og` (wired as `prebuild`). Emits `public/og/default.png` plus one PNG per project (`public/og/projects/<slug>.png`) and one per post (`public/og/blog/<slug>.png`). To change the card design, edit the `Card` component inside the script. To change the font, swap the file paths under `loadFonts()` - currently Inter 400 + 600 from `@fontsource/inter`. New projects and posts pick up new OG images on next `make build`.
+
+### `scripts/generate-resume-pdf.tsx` - build-time resume PDF
+
+Runs via `npm run build:resume-pdf` (wired as `postbuild`). Spins up a local `serve out` on port 4747, drives Playwright headless Chromium to `/resume/`, forces the light theme via `addInitScript`, prints to PDF with Letter size + 0.6" margins, and writes `out/resume.pdf`. The PDF is a build artifact - never committed. To change formatting, edit `content/resume/resume.mdx`; the PDF follows whatever the `/resume` page renders.
+
 ### `components/mdx/Diagram.tsx`, `TechList.tsx`, `RepoLink.tsx` - MDX building blocks
 
 Available globally in MDX via `mdx-components.tsx`. `Diagram` renders a captioned figure (dashed-bordered placeholder when no `src`); `TechList` renders a row of pill tags; `RepoLink` renders a bordered call-to-action link to a repository. Each follows the design tokens so it works in all three themes without per-component theme logic.
@@ -179,4 +191,5 @@ A Playwright spec under `tests/e2e/recruiter-journey.spec.ts` asserts the canoni
 - **A11y scan failing on color contrast:** the most likely culprit is a token change in `globals.css`. Run `make a11y` after any palette edit. Light-mode text-on-`surface-muted` is the historical tightest pair.
 - **Static export missing a page:** confirm the route is statically renderable (no runtime `fetch` of dynamic data, no `cookies()` / `headers()` in the route tree).
 - **Live site serves the homepage on unknown URLs** (e.g. `/foo` returns the home hero with HTTP 404): the Amplify `customRules` are misconfigured. The default `target: /index.html` rule must be replaced with `target: /404.html`. See [`DEPLOYMENT.md`](DEPLOYMENT.md) section "customRules: 404 handling" for the exact `aws amplify update-app` invocation. The `tests/e2e/not-found.spec.ts` spec catches the regression on every PR against the local server, but cannot see the live Amplify config.
-- **OG image URL 404s in production but works locally**: the Next.js `opengraph-image.tsx` route convention emits an extensionless artifact (`out/<route>/opengraph-image`). Amplify Hosting's static backend 301-redirects extensionless paths to add a trailing slash, which then 404s. Phase 4 task 2 replaces the route handler with a build-time PNG script that writes `public/<route>/og.png` with an explicit extension. Until then, the global OG image defaults from `app/layout.tsx` apply to every share.
+- **OG image URL 404s in production but works locally**: Fixed in Phase 4. OG images are now generated at build time by `scripts/generate-og-images.tsx` and written to `public/og/...` with explicit `.png` extensions. If a new project or post is missing its OG image, the prebuild step did not run - check that `npm run build` invokes `prebuild` (it should by default; package.json wires it).
+- **CSP errors in the browser console**: Phase 4 intentionally ships no `Content-Security-Policy` header. Nonce-based CSP is incompatible with `output: "export"` (no runtime to issue per-request nonces) and hash-based CSP would need automated SHA-256 regeneration on every `themeBootstrap` edit. A future hardening pass will add it; the rest of the security baseline (HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options, COOP) is already in `amplify.yml`.

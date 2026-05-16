@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "build:og": "tsx scripts/generate-og-images.tsx",
+    "build:resume-pdf": "tsx scripts/generate-resume-pdf.tsx",
+    "prebuild": "npm run build:og",
     "build": "next build",
+    "postbuild": "npm run build:resume-pdf",
     "start": "serve out -l tcp://0.0.0.0:3000 --no-clipboard",
     "lint": "eslint",
     "lint:md": "markdownlint-cli2",
@@ -27,7 +31,9 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.11.3",
+    "@fontsource/inter": "^5.2.8",
     "@playwright/test": "1.60.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "6.9.1",
@@ -43,8 +49,10 @@
     "jsdom": "29.1.1",
     "markdownlint-cli2": "0.22.1",
     "prettier": "3.8.3",
+    "satori": "^0.26.0",
     "serve": "^14.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.22.0",
     "typescript": "^5",
     "vitest": "4.1.6"
   }

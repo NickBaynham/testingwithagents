@@ -23,8 +23,8 @@ test("home renders the four primary CTAs with the expected hrefs", async ({ page
   const blog = main.getByRole("link", { name: "Read the Blog" });
   await expect(blog).toHaveAttribute("href", "/blog/");
 
-  const resume = main.getByRole("link", { name: "View Resume" });
-  await expect(resume).toHaveAttribute("href", "/resume/");
+  const resume = main.getByRole("link", { name: "Download Resume" });
+  await expect(resume).toHaveAttribute("href", "/resume.pdf");
 
   const contact = main.getByRole("link", { name: "Contact Me" });
   await expect(contact).toHaveAttribute("href", "/contact/");

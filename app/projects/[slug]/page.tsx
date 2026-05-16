@@ -16,10 +16,17 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const { slug } = await params;
   const project = await getProjectBySlug(slug);
   if (!project) return {};
+  const ogImage = `/og/projects/${project.slug}.png`;
   return {
     title: project.title,
     description: project.summary,
     alternates: { canonical: `/projects/${project.slug}` },
+    openGraph: {
+      title: project.title,
+      description: project.summary,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: project.title }],
+    },
+    twitter: { card: "summary_large_image", images: [ogImage] },
   };
 }
 

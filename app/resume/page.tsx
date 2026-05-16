@@ -22,9 +22,15 @@ export default function ResumePage() {
       </h1>
 
       <div className="mt-6 flex flex-wrap gap-3">
+        <a
+          href="/resume.pdf"
+          className="inline-flex items-center rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-accent-fg)] transition-colors hover:bg-[var(--color-accent-hover)]"
+        >
+          Download PDF
+        </a>
         <Link
           href="/contact"
-          className="inline-flex items-center rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-accent-fg)] transition-colors hover:bg-[var(--color-accent-hover)]"
+          className="inline-flex items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:text-[var(--color-accent)]"
         >
           Contact me
         </Link>
