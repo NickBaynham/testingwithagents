@@ -8,7 +8,10 @@ frontend:
         # postbuild renders /resume to PDF via Playwright headless Chromium.
         # Amplify's build image does not ship browsers; install on demand
         # and rely on the cache below to keep subsequent builds fast.
-        - npx playwright install chromium
+        # Both chromium and chromium-headless-shell are required: Playwright
+        # 1.49+ launches the headless-shell binary by default and it is
+        # packaged separately.
+        - npx playwright install chromium chromium-headless-shell
     build:
       commands:
         - npm run build
