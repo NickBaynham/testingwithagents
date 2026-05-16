@@ -128,10 +128,6 @@ Server component (`page.tsx`) loads all projects and the technology list, then p
 
 Dynamic route. `generateStaticParams` enumerates every project slug at build time. The MDX body is loaded via a slug-based dynamic import. Frontmatter drives the H1, summary, status badge, categories list, technology list, and the optional repository link. Body MDX is rendered inside `prose prose-slate` with per-element token overrides so all three themes pass WCAG AA.
 
-### `app/projects/[slug]/opengraph-image.tsx` - per-project OG image
-
-Build-time `ImageResponse` generator. Produces a 1200x630 PNG per project with the title and summary on a slate background. The image becomes the Open Graph preview when a project URL is shared.
-
 ### `components/mdx/Diagram.tsx`, `TechList.tsx`, `RepoLink.tsx` - MDX building blocks
 
 Available globally in MDX via `mdx-components.tsx`. `Diagram` renders a captioned figure (dashed-bordered placeholder when no `src`); `TechList` renders a row of pill tags; `RepoLink` renders a bordered call-to-action link to a repository. Each follows the design tokens so it works in all three themes without per-component theme logic.
@@ -165,3 +161,4 @@ A Playwright spec under `tests/e2e/recruiter-journey.spec.ts` asserts the canoni
 - **A11y scan failing on color contrast:** the most likely culprit is a token change in `globals.css`. Run `make a11y` after any palette edit. Light-mode text-on-`surface-muted` is the historical tightest pair.
 - **Static export missing a page:** confirm the route is statically renderable (no runtime `fetch` of dynamic data, no `cookies()` / `headers()` in the route tree).
 - **Live site serves the homepage on unknown URLs** (e.g. `/foo` returns the home hero with HTTP 404): the Amplify `customRules` are misconfigured. The default `target: /index.html` rule must be replaced with `target: /404.html`. See [`DEPLOYMENT.md`](DEPLOYMENT.md) section "customRules: 404 handling" for the exact `aws amplify update-app` invocation. The `tests/e2e/not-found.spec.ts` spec catches the regression on every PR against the local server, but cannot see the live Amplify config.
+- **OG image URL 404s in production but works locally**: the Next.js `opengraph-image.tsx` route convention emits an extensionless artifact (`out/<route>/opengraph-image`). Amplify Hosting's static backend 301-redirects extensionless paths to add a trailing slash, which then 404s. Phase 4 task 2 replaces the route handler with a build-time PNG script that writes `public/<route>/og.png` with an explicit extension. Until then, the global OG image defaults from `app/layout.tsx` apply to every share.

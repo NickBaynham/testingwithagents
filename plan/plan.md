@@ -280,13 +280,14 @@ Scope note: Phase 1 already shipped the SEO *baseline* (titles, meta description
 Tasks:
 
 1. Per-page `generateMetadata` audit: unique title, description, canonical URL, OG image, Twitter card. Fill any gaps left from Phase 1.
-2. Structured data (JSON-LD): `Person` on Home and About, `BlogPosting` on posts, `CreativeWork` on projects, `BreadcrumbList` on all detail pages.
-3. Sitemap regenerated with all routes and lastmod dates from content frontmatter.
-4. Image audit: every `<Image>` has alt text, width, height; convert to AVIF/WebP at build.
-5. Font strategy: `next/font` with subset and `display: swap`.
-6. Accessibility pass: focus rings, skip links, ARIA landmarks, color contrast in both themes verified.
-7. Security headers via `next.config.ts` and Amplify response-header rules: `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`. CSP uses a per-request nonce strategy (App Router middleware sets the nonce; inline scripts are nonced via `next/script`). Document the policy and its allow-list in `docs/ARCHITECTURE.md` under "Security Headers".
-8. Generate `/resume.pdf` at build time from the same MDX source used by `/resume`, mitigating the drift risk called out in the Risks table. The build step renders the resume route to PDF via Playwright headless print and writes the output to `public/resume.pdf`. `make build` regenerates it; CI fails if the checked-in copy is stale.
+2. Per-route Open Graph image generation. The Next.js `opengraph-image.tsx` route convention emits an extensionless artifact (`out/<route>/opengraph-image`), which Amplify Hosting's static-site backend 301-redirects to add a trailing slash, breaking the meta-tag URL. Fix by generating PNGs at build time with explicit `.png` extension into `public/<route>/og.png` (using `@vercel/og` or `satori` as a build-time dependency, **not** as a Next route handler), and setting `metadata.openGraph.images` to those paths. Phase 2 attempted this with `app/projects/[slug]/opengraph-image.tsx` and rolled it back; this is the corrected approach. Cover projects and (Phase 3) blog posts.
+3. Structured data (JSON-LD): `Person` on Home and About, `BlogPosting` on posts, `CreativeWork` on projects, `BreadcrumbList` on all detail pages.
+4. Sitemap regenerated with all routes and lastmod dates from content frontmatter.
+5. Image audit: every `<Image>` has alt text, width, height; convert to AVIF/WebP at build.
+6. Font strategy: `next/font` with subset and `display: swap`.
+7. Accessibility pass: focus rings, skip links, ARIA landmarks, color contrast in both themes verified.
+8. Security headers via `next.config.ts` and Amplify response-header rules: `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`. CSP uses a per-request nonce strategy (App Router middleware sets the nonce; inline scripts are nonced via `next/script`). Document the policy and its allow-list in `docs/ARCHITECTURE.md` under "Security Headers".
+9. Generate `/resume.pdf` at build time from the same MDX source used by `/resume`, mitigating the drift risk called out in the Risks table. The build step renders the resume route to PDF via Playwright headless print and writes the output to `public/resume.pdf`. `make build` regenerates it; CI fails if the checked-in copy is stale.
 
 Testing:
 

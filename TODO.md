@@ -52,7 +52,7 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes e
 - [x] `/projects` index with Category + Technology filter rows. Filter state in URL, progressively enhanced.
 - [x] `/projects/[slug]` case-study route with the 11-section template.
 - [x] Three MVP projects: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework.
-- [x] Per-project Open Graph image generator (`app/projects/[slug]/opengraph-image.tsx`).
+- [ ] Per-project Open Graph images (moved to Phase 4 task 2). The Next.js `opengraph-image.tsx` route handler emits an extensionless file that Amplify Hosting's static backend 301-redirects, breaking the og:image URL. Phase 4 will replace it with a build-time PNG generator that writes to `public/<route>/og.png` and references the file with an explicit `.png` extension.
 - [ ] Visual baselines (Playwright screenshots) on `/projects` and one detail page (deferred - requires Linux CI to generate stable baselines; will land in a Phase 2 follow-up commit when CI runs the screenshot regen).
 - [ ] Case-study layout snapshot test (deferred alongside the visual baseline work).
 
