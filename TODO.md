@@ -86,7 +86,15 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes e
 - **Sitemap lastmod from frontmatter**: blog uses `publishedAt`/`updatedAt`; project frontmatter has no `updatedAt` field today. Falls back to build time. Low priority.
 - **Image audit (AVIF/WebP)**: no shipped images yet beyond the OG PNGs. Revisit when cover images land.
 
-## Phase 5 (planned)
+## Phase 5 (done)
 
-- Amplify production promotion, custom domain attach, ACM cert, www->apex redirect.
-- Privacy notice page (`/privacy`).
+- [x] Amplify domain association for apex + www, both serving `main`.
+- [x] Route 53 records (ACM validation CNAME, apex A-ALIAS to CloudFront, www CNAME).
+- [x] ACM cert validated; Amplify domain status `AVAILABLE`.
+- [x] www -> apex 301 redirect via Amplify customRule (path auto-preserved).
+- [x] Privacy notice page at `/privacy/` with footer link and sitemap entry.
+- [x] `lychee.toml` exclude for `testingwithagents.com` removed; docker-compose lychee pinned to public DNS so local linkcheck is deterministic immediately after cutover.
+
+### Phase 5 remaining manual step
+
+- [ ] In GitHub repo Settings -> Secrets and variables -> Actions -> Variables, set `AMPLIFY_LIVE_URL=https://testingwithagents.com`. The `post-deploy-smoke` job currently defaults to the preview Amplify URL; flipping this variable points it at the canonical host.

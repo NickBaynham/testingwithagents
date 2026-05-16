@@ -39,6 +39,13 @@ services:
     # in the repo. Cache is disabled in lychee.toml for the same reason.
     volumes:
       - ..:/workspace:ro
+    # Pin to public resolvers so the container is independent of the host's
+    # DNS cache. Without this, local runs against a freshly-cutover canonical
+    # domain (e.g. testingwithagents.com right after the Route 53 records
+    # land) fail because the host's local resolver has not refreshed yet.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     command:
       - --config
       - /workspace/lychee.toml

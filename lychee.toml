@@ -27,10 +27,6 @@ exclude = [
   # them as broken. Each exclude below has a removal trigger — delete the
   # line when the phase listed lands.
   #
-  # Remove with Phase 5 (custom-domain cutover). Until then, canonical /
-  # sitemap URLs reference the eventual production host which does not yet
-  # resolve.
-  "^https?://(?:www\\.)?testingwithagents\\.com",
 ]
 exclude_path = [
   "node_modules",
