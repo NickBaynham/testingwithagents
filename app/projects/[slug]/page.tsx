@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { getAllProjects, getProjectBySlug } from "@/lib/content/projects";
+import { breadcrumbListJsonLd, creativeWorkJsonLd } from "@/lib/seo/structured-data";
 
 type Params = { slug: string };
 
@@ -34,6 +36,16 @@ export default async function ProjectPage({ params }: { params: Promise<Params> 
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+      <JsonLd
+        items={[
+          creativeWorkJsonLd(project),
+          breadcrumbListJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Projects", path: "/projects" },
+            { name: project.title, path: `/projects/${project.slug}` },
+          ]),
+        ]}
+      />
       <p className="text-sm font-medium uppercase tracking-widest text-[var(--color-accent)]">
         <Link href="/projects/" className="hover:text-[var(--color-accent-hover)]">
           Projects

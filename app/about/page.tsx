@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { RecruiterSummary } from "@/components/RecruiterSummary";
+import { breadcrumbListJsonLd, personJsonLd } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = {
   title: "About",
@@ -11,6 +13,15 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+      <JsonLd
+        items={[
+          personJsonLd(),
+          breadcrumbListJsonLd([
+            { name: "Home", path: "/" },
+            { name: "About", path: "/about" },
+          ]),
+        ]}
+      />
       <p className="text-sm font-medium uppercase tracking-widest text-[var(--color-accent)]">
         About
       </p>

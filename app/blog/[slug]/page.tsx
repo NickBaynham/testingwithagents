@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { findPrevNext, findRelatedPosts, getAllPosts, getPostBySlug } from "@/lib/content/blog";
+import { blogPostingJsonLd, breadcrumbListJsonLd } from "@/lib/seo/structured-data";
 import { site } from "@/lib/site-config";
 
 type Params = { slug: string };
@@ -65,6 +67,16 @@ export default async function PostPage({ params }: { params: Promise<Params> }) 
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+      <JsonLd
+        items={[
+          blogPostingJsonLd(post),
+          breadcrumbListJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Blog", path: "/blog" },
+            { name: post.title, path: `/blog/${post.slug}` },
+          ]),
+        ]}
+      />
       <p className="text-sm font-medium uppercase tracking-widest text-[var(--color-accent)]">
         <Link href="/blog/" className="hover:text-[var(--color-accent-hover)]">
           Blog

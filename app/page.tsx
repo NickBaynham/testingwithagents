@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { RecruiterSummary } from "@/components/RecruiterSummary";
 import { getRecentPosts } from "@/lib/content/blog";
 import { getFeaturedProjects } from "@/lib/content/projects";
+import { personJsonLd } from "@/lib/seo/structured-data";
 import { site } from "@/lib/site-config";
 
 type Cta = { label: string; href: string; emphasis?: boolean };
@@ -37,6 +39,7 @@ export default async function Home() {
 
   return (
     <div className="mx-auto max-w-5xl px-6">
+      <JsonLd data={personJsonLd()} />
       <section aria-labelledby="hero-heading" className="py-16 sm:py-24">
         <p className="text-sm font-medium uppercase tracking-widest text-[var(--color-accent)]">
           {site.tagline}
