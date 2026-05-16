@@ -146,7 +146,19 @@ jobs:
         env:
           AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
         run: |
-          aws amplify start-job \
-            --app-id "$AMPLIFY_APP_ID" \
-            --branch-name main \
-            --job-type RELEASE
+          # `aws amplify start-job` fails with LimitExceededException when a
+          # build for this branch is already running. Treat that as success -
+          # whichever path triggered the in-flight build will deploy this
+          # commit. Any other error still fails the step.
+          set +e
+          out=$(aws amplify start-job --app-id "$AMPLIFY_APP_ID" --branch-name main --job-type RELEASE 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -eq 0 ]; then
+            exit 0
+          fi
+          if echo "$out" | grep -q "LimitExceededException"; then
+            echo "Another Amplify build for main is already running; treating as deployed."
+            exit 0
+          fi
+          exit $code
