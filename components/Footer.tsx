@@ -37,6 +37,11 @@ export function Footer() {
               RSS
             </a>
           </li>
+          <li>
+            <a href="/privacy/" className="hover:text-[var(--color-accent)]">
+              Privacy
+            </a>
+          </li>
         </ul>
       </div>
     </footer>

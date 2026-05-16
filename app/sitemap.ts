@@ -12,7 +12,15 @@ export const dynamic = "force-static";
   routes are enumerated dynamically from content/. CI build emits
   /sitemap.xml.
 */
-const staticRoutes = ["/", "/about", "/resume", "/contact", "/projects", "/blog"] as const;
+const staticRoutes = [
+  "/",
+  "/about",
+  "/resume",
+  "/contact",
+  "/projects",
+  "/blog",
+  "/privacy",
+] as const;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
