@@ -11,6 +11,13 @@ All notable shipped changes. Newest entries at the top.
 - **Security headers via `amplify.yml` customHeaders.** Static export has no Next runtime for headers, so the policy moves to Amplify Hosting. Applied to `**/*`: HSTS (`max-age=31536000; includeSubDomains; preload`), Referrer-Policy (`strict-origin-when-cross-origin`), Permissions-Policy (`camera=(), microphone=(), geolocation=(), interest-cohort=()`), X-Content-Type-Options (`nosniff`), X-Frame-Options (`DENY`), Cross-Origin-Opener-Policy (`same-origin`). CSP is intentionally deferred - nonce CSP needs a runtime; hash CSP needs automated regen on every `themeBootstrap` edit. Deviation documented in `plan/plan.md`, `docs/ARCHITECTURE.md`, and `docs/MAINTENANCE.md`.
 - **CTA reshape.** Home `View Resume` -> `Download Resume` (now that `/resume.pdf` actually exists). Resume page gains a `Download PDF` button. Resume MDX no longer carries the Phase 4 placeholder note. Recruiter-journey e2e updated to navigate via the Resume nav link instead of the now-downloading CTA, and asserts the new Download PDF link.
 
+### Phase 4 - deploy-time fixes
+
+- Amplify build job 13 failed because the build image does not ship Playwright browsers; `chromium.launch()` from the resume-PDF postbuild threw `Executable doesn't exist at /root/.cache/ms-playwright/...`. Added `npx playwright install chromium` to `amplify.yml` preBuild and included `/root/.cache/ms-playwright/**/*` in the cache block so subsequent builds reuse the binary. First build after the fix downloads ~150 MB; later builds short-circuit.
+- Live verification of the next deploy showed the security headers from `amplify.yml` `customHeaders:` were absent from responses. Amplify silently ignores that block - the headers must live on the Amplify app config, applied via `aws amplify update-app --custom-headers ...`. Set the canonical six-header payload via CLI; verified live with curl. `amplify.yml` now keeps the policy as a *commented-out* reference, with the CLI invocation captured in `docs/DEPLOYMENT.md` "Security headers (Amplify custom-headers)".
+- Added `tests/e2e/security-headers.spec.ts` that asserts all six headers against a deployed Amplify URL (gated on `SECURITY_HEADERS_URL` env var so it does not run against the local `serve` instance, which does not set them).
+- `docs/MAINTENANCE.md` troubleshooting section gains entries for both deploy-time gotchas so the next person can recognize them in seconds.
+
 ### Phase 4 - JSON-LD structured data (shipped earlier in the phase as commit `7dca5a9`)
 
 - `lib/seo/structured-data.ts` builders (Person, BreadcrumbList, BlogPosting, CreativeWork), `<JsonLd>` renderer, wired on Home, About, every project, every post.

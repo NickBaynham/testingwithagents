@@ -58,6 +58,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      # postbuild (scripts/generate-resume-pdf.tsx) renders /resume to PDF
+      # via Playwright headless Chromium. Install the browser before build
+      # so the postbuild step does not crash with "Executable doesn't
+      # exist". Same root cause as Amplify build job 13.
+      - run: npx playwright install chromium
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:

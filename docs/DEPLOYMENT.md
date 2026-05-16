@@ -58,6 +58,42 @@ Notes:
 - `node_modules` and `.next/cache` are cached between builds for speed.
 - Locally, `npm run start` serves `out/` via `serve` on port 3000 (used by Playwright in CI).
 
+## Amplify build-image quirks
+
+The Amplify Hosting build image ships Node and `nvm` but **does not** ship a Playwright browser binary. The build-time resume PDF (`scripts/generate-resume-pdf.tsx`) calls `chromium.launch()`, so the build will fail with `Executable doesn't exist at /root/.cache/ms-playwright/...` unless we install it.
+
+The `amplify.yml` preBuild explicitly runs `npx playwright install chromium`, and the `cache.paths` block includes `/root/.cache/ms-playwright/**/*` so the browser binary persists between builds (the first build is ~150 MB heavier; subsequent builds reuse the cached binary). If you add a new build-time tool that depends on a system binary not present in Amazon Linux 2023, install it the same way.
+
+## Security headers (Amplify custom-headers)
+
+Static export leaves no Next runtime to attach response headers via `next.config.ts`, so the policy lives on the Amplify app itself, not in `amplify.yml`. We discovered this the hard way on the Phase 4 deploy - a `customHeaders:` block in `amplify.yml` was silently ignored at the CloudFront layer.
+
+The headers are configured via `aws amplify update-app --custom-headers ...`. The current state is captured in `amplify.yml`'s `customHeaders:` block as documentation, but the source of truth is the app config. To update:
+
+```sh
+cat > /tmp/headers.yml <<'EOF'
+customHeaders:
+  - pattern: "**/*"
+    headers:
+      - key: "Strict-Transport-Security"
+        value: "max-age=31536000; includeSubDomains; preload"
+      - key: "Referrer-Policy"
+        value: "strict-origin-when-cross-origin"
+      - key: "Permissions-Policy"
+        value: "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+      - key: "X-Content-Type-Options"
+        value: "nosniff"
+      - key: "X-Frame-Options"
+        value: "DENY"
+      - key: "Cross-Origin-Opener-Policy"
+        value: "same-origin"
+EOF
+
+aws amplify update-app --app-id "$AMPLIFY_APP_ID" --custom-headers "$(cat /tmp/headers.yml)"
+```
+
+Verify with `curl -sI <amplify-url>/ | grep -iE "strict-transport|referrer-policy|permissions-policy|x-content-type|x-frame|cross-origin"`. The `tests/e2e/security-headers.spec.ts` spec asserts the same set against `SECURITY_HEADERS_URL`; the GitHub Actions deploy job can be wired to run it after each release.
+
 ## customRules: 404 handling
 
 Amplify Hosting auto-provisions a customRule on new apps that rewrites every unmatched path to `/index.html` with status `404-200`. For a static export that has a real `out/404.html`, that default is wrong: users hitting `/about/` or any not-yet-built route receive the homepage body. **Override the rule once, after the app is created**:

@@ -21,27 +21,24 @@ frontend:
       - node_modules/**/*
       - .next/cache/**/*
       - /root/.cache/ms-playwright/**/*
-customHeaders:
-  # Security headers applied to every response served by Amplify Hosting.
-  # Phase 4 task 8. With output: "export" there is no Next runtime to set
-  # these via next.config.ts headers(), so amplify.yml is the right place.
-  #
-  # CSP is intentionally omitted: with static export and Next's inlined
-  # theme-bootstrap script, a hash-pinned policy would need to be
-  # regenerated on every bootstrap-script edit. Until that workflow is
-  # automated, we ship the rest of the security baseline and document
-  # CSP as a follow-up in plan/plan.md.
-  - pattern: "**/*"
-    headers:
-      - key: "Strict-Transport-Security"
-        value: "max-age=31536000; includeSubDomains; preload"
-      - key: "Referrer-Policy"
-        value: "strict-origin-when-cross-origin"
-      - key: "Permissions-Policy"
-        value: "camera=(), microphone=(), geolocation=(), interest-cohort=()"
-      - key: "X-Content-Type-Options"
-        value: "nosniff"
-      - key: "X-Frame-Options"
-        value: "DENY"
-      - key: "Cross-Origin-Opener-Policy"
-        value: "same-origin"
+# Security headers are documented below for reference but Amplify ignores
+# the `customHeaders:` block in amplify.yml at the CloudFront layer. The
+# *source of truth* for production headers is the Amplify app config,
+# applied via `aws amplify update-app --custom-headers ...`. See
+# `docs/DEPLOYMENT.md` "Security headers (Amplify custom-headers)".
+#
+# customHeaders:
+#   - pattern: "**/*"
+#     headers:
+#       - key: "Strict-Transport-Security"
+#         value: "max-age=31536000; includeSubDomains; preload"
+#       - key: "Referrer-Policy"
+#         value: "strict-origin-when-cross-origin"
+#       - key: "Permissions-Policy"
+#         value: "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+#       - key: "X-Content-Type-Options"
+#         value: "nosniff"
+#       - key: "X-Frame-Options"
+#         value: "DENY"
+#       - key: "Cross-Origin-Opener-Policy"
+#         value: "same-origin"
