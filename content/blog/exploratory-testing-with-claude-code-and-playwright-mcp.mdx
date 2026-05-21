@@ -1,0 +1,126 @@
+---
+title: "Exploratory testing with Claude Code and the Playwright MCP"
+slug: "exploratory-testing-with-claude-code-and-playwright-mcp"
+excerpt: "Pairing Claude Code with the Playwright MCP server to drive a real browser through a demo store, derive acceptance-criteria test cases from the walkthrough, and execute them - turning exploratory testing into reproducible artifacts."
+publishedAt: "2026-05-21"
+categories:
+  - "Agentic Testing"
+  - "Tool Reviews"
+tags:
+  - "agents"
+  - "playwright"
+  - "mcp"
+  - "exploratory-testing"
+  - "claude-code"
+---
+
+Manual exploratory testing is invaluable for finding the gaps that scripted tests miss, but it is also tedious to reproduce and document. In this session, we paired Claude Code with the Playwright Model Context Protocol (MCP) server and walked through the canonical Sauce Labs demo store as if we were a tester sitting at the keyboard. The agent drove the browser, captured the state of each page, derived test cases from what it observed, and executed those cases against the live application. This post recaps the workflow, the install steps for the Playwright MCP, and the results.
+
+## What is the Playwright MCP
+
+The Playwright MCP is an MCP server that exposes Playwright's browser automation primitives (navigate, click, fill, snapshot, evaluate, screenshot, etc.) as tools the agent can call. Once installed, the agent can drive a real browser instance, observe the page through accessibility snapshots, and reason about the next step in plain language. The accessibility snapshot is preferred over screenshots because it is structured text the model can parse directly, and each interactive element comes back with a stable reference the agent can pass to subsequent tool calls.
+
+## Installing the Playwright MCP
+
+The Playwright MCP ships as an npm package and is registered with Claude Code through the `claude mcp add` command. The package itself does not need to be cloned or built; npx pulls it on demand.
+
+```bash
+# Install the Claude Code CLI if you have not already
+npm install -g @anthropic-ai/claude-code
+
+# Register the Playwright MCP server with Claude Code
+claude mcp add playwright -- npx -y @playwright/mcp@latest
+
+# On first use, install the Playwright browser binaries
+npx playwright install
+```
+
+For project-scoped configuration, the same server can be added to a `.mcp.json` file at the root of the repository so collaborators inherit it automatically:
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}
+```
+
+Verify the server is wired up by running `claude mcp list` and looking for `playwright`. After that, the `mcp__plugin_playwright_playwright__*` tools appear in the agent's tool catalog.
+
+## The Session
+
+We worked against [https://www.saucedemo.com/](https://www.saucedemo.com/), a fixture site that ships with multiple seeded user accounts ranging from a well-behaved standard user to deliberately broken ones. Everything below was driven by natural-language prompts; the agent translated each prompt into the appropriate MCP tool call.
+
+### Opening the site
+
+The first prompt was simply "open https://www.saucedemo.com/." The agent called `browser_navigate`, the Swag Labs login page loaded, and the response confirmed both the URL and the page title.
+
+### Logging in as the standard user
+
+Next prompt: "login as the standard user." The agent already knew the well-known credentials for this demo site (`standard_user` / `secret_sauce`, which are listed right on the login page) and used `browser_fill_form` to populate both fields in a single tool call before clicking Login. The post-click snapshot showed the URL had advanced to `/inventory.html`, confirming the login succeeded.
+
+### Adding an item to the cart
+
+"Add Sauce Labs backpack to the cart." The agent captured a snapshot of the inventory listing, located the Add to cart button associated with the Backpack tile, and clicked it. The button label flipped to Remove and the cart badge incremented to 1.
+
+### Walking the checkout flow
+
+A short string of prompts carried us through the rest of the purchase:
+
+- "Navigate to the cart" - `browser_navigate` to `/cart.html`, snapshot confirmed the Backpack with a quantity of 1.
+- "proceed to checkout" - clicked Checkout, advanced to `/checkout-step-one.html`.
+- "fill in the checkout form" - the agent filled First Name, Last Name, and Zip/Postal Code with reasonable test data and continued.
+- "click finish" - order confirmed on `/checkout-complete.html` with the "Thank you for your order!" message.
+- "click the Back Home button" - returned to `/inventory.html`.
+
+### Resetting and inspecting the catalog
+
+"Reset App State" opened the hamburger menu and triggered the reset link from the sidebar. After that we asked the agent two questions about the catalog: "How many products on the products page?" (answer: six) and "which item is the most expensive?" (answer: Sauce Labs Fleece Jacket at $49.99). The agent answered from the snapshot it had already captured rather than re-querying the page.
+
+### Buying the most expensive item
+
+"please purchase this item." The agent navigated back to the inventory, added the Fleece Jacket, walked through checkout again, and confirmed an item total of $49.99, tax of $4.00, and a grand total of $53.99 before clicking Finish.
+
+## Deriving and Executing Test Cases
+
+Once the manual walk-through was complete, we asked the agent to capture each interaction as a formal acceptance-criteria-style test case in `cases/saucelabs.md`. Twelve cases were written, covering login, add-to-cart, cart review, the multi-step checkout, post-checkout return, app state reset, About navigation, catalog inspection, and an end-to-end purchase of the most expensive item.
+
+We then prompted "please execute the test cases for sourcelabs and report status." The agent re-ran the entire suite against the live application:
+
+| Test Case | Status |
+|---|---|
+| TC-01 Standard User Login | PASS |
+| TC-02 Add Item to Cart | PASS |
+| TC-03 Navigate to Cart | PASS |
+| TC-04 Proceed to Checkout | PASS |
+| TC-05 Submit Checkout Info | PASS |
+| TC-06 Finish Checkout | PASS |
+| TC-07 Return to Inventory | PASS |
+| TC-08 Reset App State | PASS with note |
+| TC-09 Navigate to About | PASS |
+| TC-10 Verify Product Count | PASS |
+| TC-11 Most Expensive Product | PASS |
+| TC-12 Purchase Fleece Jacket E2E | PASS |
+
+All twelve cases passed. TC-08 carried a note: after Reset App State, the cart badge clears immediately, but the inventory page does not re-render its Add to cart / Remove button text until the page is reloaded. The underlying application state was correctly reset; only the live DOM lagged.
+
+## Observations on the MCP Itself
+
+The session also surfaced a small but useful diagnostic about the tooling. On at least one inventory button, calls to `browser_click` returned a successful tool response but the React handler did not fire and the button stayed unchanged. Switching to `browser_evaluate` and invoking `.click()` directly on the DOM node worked every time. This is not a defect in Sauce Labs; it appears to be an interaction nuance between the MCP click implementation and the React component. For exploratory work it is worth remembering that `browser_evaluate` is a reliable fallback when a visible button refuses to advance state.
+
+## Why This Workflow is Worth It
+
+A traditional exploratory testing session leaves behind a tester's notes and, if you are lucky, screenshots. With Claude Code and the Playwright MCP, the same session produces:
+
+- A reproducible chat transcript that any teammate can replay.
+- A clean Markdown file of acceptance criteria suitable for review or for converting into Playwright spec files.
+- An executed pass/fail report against the live site without having to context-switch into a test framework.
+
+The cost is low - one MCP install, one npm package, and a browser binary - and the payoff is a hybrid workflow that captures the open-ended nature of exploratory testing without losing the artifacts that make it valuable downstream.
+
+## Next Steps
+
+The natural follow-on is to convert `cases/saucelabs.md` into actual Playwright test files under a `tests/` directory, then let the agent generate the implementation from the criteria it wrote. Because the test cases already reference the same `data-test` selectors the agent observed during the manual walkthrough, the translation is mostly mechanical. That is the topic for the next post.

@@ -78,5 +78,5 @@ See `plan/plan.md` and `TODO.md`. Pending: visual baselines (Playwright screensh
 - `/blog/[slug]` post detail with author byline, publish date, reading time, related-posts section (tag-overlap ranking), and prev/next navigation.
 - Build-time `/rss.xml` (RSS 2.0) and `/feed.json` (JSON Feed 1.1).
 - Footer carries an RSS link; Home "Latest writing" surfaces the three most recent posts.
-- Five posts live: Software testing for the agentic era, Why AI agents still need human testers, Agentic engineering antipatterns, What QA should provide as evidence of readiness, Agentic Test Data Manager (project writeup).
+- Six posts live: Software testing for the agentic era, Why AI agents still need human testers, Agentic engineering antipatterns, What QA should provide as evidence of readiness, Agentic Test Data Manager (project writeup), Exploratory testing with Claude Code and the Playwright MCP.
 - Sitemap includes every blog post route.
