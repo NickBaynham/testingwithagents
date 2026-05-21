@@ -72,7 +72,9 @@ test("feed.json validates as JSON Feed 1.1 and lists the posts", async ({ page }
   const body = await response.json();
   expect(body.version).toBe("https://jsonfeed.org/version/1.1");
   expect(body.items).toHaveLength(6);
-  expect(body.items[0].url).toContain("/blog/exploratory-testing-with-claude-code-and-playwright-mcp/");
+  expect(body.items[0].url).toContain(
+    "/blog/exploratory-testing-with-claude-code-and-playwright-mcp/",
+  );
 });
 
 test("sitemap.xml includes every blog post route", async ({ page }) => {
