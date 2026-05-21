@@ -96,3 +96,76 @@ test("footer RSS link is present and points at /rss.xml", async ({ page }) => {
   await expect(rss).toBeVisible();
   await expect(rss).toHaveAttribute("href", "/rss.xml");
 });
+
+const POST_SLUGS = [
+  "agentic-test-data-manager",
+  "software-testing-for-the-agentic-era",
+  "why-ai-agents-still-need-human-testers",
+  "agentic-engineering-antipatterns",
+  "what-qa-should-provide-as-evidence-of-readiness",
+] as const;
+
+test.describe("post body never leaks YAML frontmatter", () => {
+  for (const slug of POST_SLUGS) {
+    test(`${slug} article does not render frontmatter literals`, async ({ page }) => {
+      await page.goto(`/blog/${slug}/`);
+      const article = page.locator("article").first();
+      const text = (await article.innerText()).toLowerCase();
+      // These tokens only exist in YAML frontmatter; if they appear in the
+      // rendered article body it means the MDX compiler is treating the
+      // `---YAML---` block as content instead of stripping it.
+      expect(text).not.toContain("publishedat:");
+      expect(text).not.toContain('slug: "');
+      expect(text).not.toContain('excerpt: "');
+    });
+  }
+});
+
+test.describe("post code blocks are readable in every theme", () => {
+  const THEMES = ["light", "dark", "warm"] as const;
+  for (const theme of THEMES) {
+    test(`code block bg vs. code text meets WCAG AA contrast in ${theme} theme`, async ({
+      page,
+    }) => {
+      // Set the theme BEFORE first navigation so the no-FOUC bootstrap picks it up.
+      await page.addInitScript((t) => {
+        window.localStorage.setItem("theme", t);
+      }, theme);
+      await page.goto("/blog/agentic-test-data-manager/");
+      const pre = page.locator("article pre").first();
+      await expect(pre).toBeVisible();
+      const ratio = await pre.evaluate((el) => {
+        const code = el.querySelector("code") ?? el;
+        const preBg = window.getComputedStyle(el).backgroundColor;
+        const codeFg = window.getComputedStyle(code).color;
+        // Render each color through a canvas so any browser format (rgb, lab,
+        // color()) resolves to a concrete sRGB triple.
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext("2d")!;
+        const toRgb = (input: string): [number, number, number] => {
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = "#000";
+          ctx.fillStyle = input;
+          ctx.fillRect(0, 0, 1, 1);
+          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+          return [r, g, b];
+        };
+        const lum = ([r, g, b]: [number, number, number]) => {
+          const ch = (c: number) => {
+            const s = c / 255;
+            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+          };
+          return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+        };
+        const L1 = lum(toRgb(preBg));
+        const L2 = lum(toRgb(codeFg));
+        const [hi, lo] = L1 > L2 ? [L1, L2] : [L2, L1];
+        return (hi + 0.05) / (lo + 0.05);
+      });
+      // WCAG AA body-text contrast floor. Dark-on-dark code blocks come in
+      // around 2:1, which is what the user reported as unreadable.
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});

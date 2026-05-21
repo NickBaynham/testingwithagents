@@ -31,12 +31,18 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: process.env.CI ? "npm run start" : "npm run dev",
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    stdout: "ignore",
-    stderr: "pipe",
-  },
+  // When LIVE_URL is set (post-deploy smoke + security-headers jobs), tests
+  // hit the deployed Amplify URL directly and there is no `out/` artifact in
+  // the workspace to serve. Booting the local webServer would just wait 120s
+  // and fail. Skip it in that mode.
+  webServer: process.env.LIVE_URL
+    ? undefined
+    : {
+        command: process.env.CI ? "npm run start" : "npm run dev",
+        url: BASE_URL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        stdout: "ignore",
+        stderr: "pipe",
+      },
 });

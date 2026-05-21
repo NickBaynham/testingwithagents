@@ -96,7 +96,7 @@ export default async function PostPage({ params }: { params: Promise<Params> }) 
         {post.readingTimeMinutes} min read
       </p>
 
-      <article className="prose prose-slate mt-10 max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-[var(--color-text)] prose-p:text-[var(--color-text-muted)] prose-li:text-[var(--color-text-muted)] prose-strong:text-[var(--color-text)] prose-a:text-[var(--color-accent)] hover:prose-a:text-[var(--color-accent-hover)] prose-blockquote:border-l-[var(--color-accent)] prose-blockquote:text-[var(--color-text-muted)] prose-code:text-[var(--color-text)] prose-hr:border-[var(--color-border)]">
+      <article className="prose prose-slate mt-10 max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-[var(--color-text)] prose-p:text-[var(--color-text-muted)] prose-li:text-[var(--color-text-muted)] prose-strong:text-[var(--color-text)] prose-a:text-[var(--color-accent)] hover:prose-a:text-[var(--color-accent-hover)] prose-blockquote:border-l-[var(--color-accent)] prose-blockquote:text-[var(--color-text-muted)] prose-hr:border-[var(--color-border)]">
         <Body />
       </article>
 

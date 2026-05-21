@@ -113,3 +113,20 @@ body {
   background: var(--color-accent);
   color: var(--color-accent-fg);
 }
+
+/*
+  Tailwind Typography's `prose-slate` modifier ships a fixed dark-slate code
+  block (slate-800 bg + slate-300 code text) regardless of the active theme.
+  In our light + warm themes the dark slate background clashes; combined with
+  any custom code-color override it becomes dark-on-dark and fails WCAG AA.
+  Re-bind the four typography variables that drive code rendering to our
+  theme tokens so code blocks adopt the theme automatically.
+*/
+.prose-slate {
+  --tw-prose-pre-bg: var(--color-surface-muted);
+  --tw-prose-pre-code: var(--color-text);
+  --tw-prose-code: var(--color-text);
+  --tw-prose-invert-pre-bg: var(--color-surface-muted);
+  --tw-prose-invert-pre-code: var(--color-text);
+  --tw-prose-invert-code: var(--color-text);
+}
