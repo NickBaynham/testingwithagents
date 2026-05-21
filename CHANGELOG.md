@@ -4,6 +4,10 @@ All notable shipped changes. Newest entries at the top.
 
 ## Unreleased
 
+### Content
+
+- New blog post: **Agentic Test Data Manager: giving AI testing agents safe, auditable access to test data** (`content/blog/agentic-test-data-manager.mdx`). Long-form project writeup covering the problem ATDM solves, use cases, the 90-second demo path, the agent / SUT / Postgres / MinIO architecture, the five load-bearing design decisions (no SQL from agent code, validator gate, reversible cleanup, append-only audit, framework-native fixtures), the tech stack rationale, CI fitness tests worth stealing, and how the platform shortens the test-data feedback loop on a real project. Categories: Project Logs, Agentic Testing. Per-post OG image will regenerate on next `make build` via the `prebuild` script.
+
 ### Phase 4 - SEO, OG images, security baseline, resume PDF
 
 - **Per-route Open Graph images (corrected fix).** `scripts/generate-og-images.tsx` is a build-time PNG generator (satori + @resvg/resvg-js + Inter 400/600 from `@fontsource/inter`) that emits `public/og/default.png` plus one PNG per project and per blog post with explicit `.png` extensions. Wired as `prebuild`. Each page's `metadata.openGraph.images` and `metadata.twitter.images` references the matching file. This replaces the Phase 2 rolled-back `opengraph-image.tsx` route handler, which hit an Amplify trailing-slash 301 on extensionless paths. Verified live URLs return `200 image/png` (test in `tests/e2e/og-images.spec.ts`, 14 assertions).

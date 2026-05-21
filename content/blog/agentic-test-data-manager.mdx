@@ -1,0 +1,187 @@
+---
+title: "Agentic Test Data Manager: giving AI testing agents safe, auditable access to test data"
+slug: "agentic-test-data-manager"
+excerpt: "A small, opinionated platform that lets engineers and AI testing agents request scenario-grounded synthetic data by intent, consume it via framework-native fixtures, and clean it up reversibly - with a full audit trail of every action the agent took."
+publishedAt: "2026-05-20"
+categories:
+  - "Project Logs"
+  - "Agentic Testing"
+tags:
+  - "agents"
+  - "test-data"
+  - "fastapi"
+  - "postgres"
+  - "project-log"
+---
+
+Test data is the unsexy bottleneck of automation. Tests pass locally and fail in CI because someone updated a seed script. A flaky run leaves a half-seeded member in the database for the next pipeline to trip over. A new scenario needs three joined tables in a specific state and the engineer spends a morning hand-crafting SQL. And now, on top of all that, autonomous testing agents are starting to want test data too - except agents that write their own SQL against your databases are a security and stability nightmare waiting to happen.
+
+The **Agentic Test Data Manager (ATDM)** is a small, opinionated platform that takes a different shape for this problem. Automation engineers - and AI testing agents - request scenario-grounded synthetic data **by intent**, consume it via framework-native fixtures, and clean it up deterministically afterward, with a full audit trail of every action the agent took. The agent never touches SQL directly; a deterministic validator gates every plan before the System Under Test seeds it inside a single atomic transaction.
+
+This post walks through what ATDM does, how to spin up the demo, the design decisions behind the stack, and where it can shorten the test-data feedback loop on a real project.
+
+## The problem ATDM is built around
+
+Three pain points show up on almost every automation project at scale.
+
+1. **Test data drift.** Scripts that seed data live next to tests; both rot independently. Reproducing a failure means trying to reconstruct a state that may no longer exist in the seed code.
+2. **Cleanup is best-effort.** Tests teardown what they remember to clean up. Aborted runs, exceptions, and developer interrupts leak rows.
+3. **AI agents are starting to ask for data.** Letting an LLM-driven test generator write SQL or call internal admin endpoints directly is a fast path to a security incident.
+
+ATDM treats these as a single architectural problem: give callers - human or agent - a single, narrow API for *scenario intent*, and make every step of fulfilling that intent traceable, validated, and reversible.
+
+## Use cases
+
+The MVP picks **healthcare claim denials** as the working domain because the shape of the data is naturally relational - members, plans, providers, eligibility, claims, procedure codes, diagnosis codes - and the scenarios are nuanced enough to be interesting. The patterns generalize.
+
+A few representative use cases:
+
+- **"I need an active member with an expired eligibility row."** Today this is hand-rolled SQL. With ATDM it is `atdm request claim_denial_expired_eligibility`, and you get back entity IDs, a fixture file, and a one-time cleanup token.
+- **Playwright or pytest tests that need framework-native fixtures.** ATDM emits both a Playwright JSON fixture and an importable pytest Python module. Tests consume the data the way they natively expect to, with no glue code.
+- **Parallel agent runs without crosstalk.** Every request is tagged with a `test_run_id`. `reset_run` cleans only that run's rows; baseline reference data stays intact. Two agents seeding in parallel do not stomp on each other.
+- **Coverage intelligence linkage.** Every scenario in the catalog carries `linked_requirement_ids[]`. Once a requirements store is wired in, you can join scenario runs to requirements and see exactly which behaviors are covered, which are exercised flakily, and which have never been touched.
+- **A safe surface for AI testing agents.** An LLM-driven agent can call `POST /test-data/requests` and consume fixtures, but it cannot write SQL, cannot bypass the validator, and cannot mutate the audit log. The surface area available to the agent is exactly what is needed and nothing more.
+
+## Run the demo in 90 seconds
+
+With Python 3.12, PDM, Docker, and GNU Make installed, three commands get you to a live audit UI.
+
+```bash
+make setup       # verify tools, install missing ones, pdm install
+make up          # docker compose; all services healthy in ~18s p95
+make demo        # full intent to seed to test to reset to audit loop
+```
+
+On a warm stack the demo finishes in roughly three seconds (the budget is ninety). Under the hood, `make demo` runs `scripts/demo.sh`, which:
+
+1. Hits the agent's `/healthz` probe.
+2. Calls `atdm request claim_denial_active_member --playwright --pytest` and captures the entity IDs, fixture paths, cleanup token, and audit URL.
+3. Runs `automation/pytest-api/test_example_claim_denial.py` against the freshly emitted fixture.
+4. Calls `atdm reset <run_id>` with the cleanup token to tear the run down.
+5. Prints the audit trail JSON and the URL of the server-rendered HTML audit page at `http://localhost:18001/ui/audit/{run_id}`.
+
+The audit page is plain HTML with Pico.css from a CDN - no JavaScript build. It shows every event in the run's lifecycle: request received, plan generated, validators passed, seed transaction committed, fixtures written, test consumed the fixture, reset executed. That page is the thing reviewers remember.
+
+## The architecture
+
+The system splits cleanly into three processes plus storage.
+
+```
+   Automation engineer / AI agent
+            |
+            |  atdm CLI - @atdm_scenario fixture - browser
+            v
+   +-------------------------+
+   |  ATDM Agent (:18001)    |
+   |  - scenario registry    |
+   |  - rule-based planner   |
+   |  - validators (4)       |
+   |  - fixture emitters     |
+   |  - audit writer         |
+   +------------+------------+
+                | POST /internal/scenarios/seed (atomic)
+                v
+   +-------------------------+
+   |  Target SUT (:18000)    |
+   |  /internal/members      |
+   |  /internal/reset/*      |
+   |  /internal/baseline/*   |
+   +------------+------------+
+                | single Postgres transaction
+                v
+   +-------------------------+         +----------------------+
+   |  PostgreSQL 16          |         |  MinIO (:19000)      |
+   |  7 entities, FKs,       |         |  catalog - audit -   |
+   |  CHECK constraints      |         |  fixtures (Parquet)  |
+   +-------------------------+         +----------------------+
+```
+
+A handful of decisions shape this layout.
+
+### Decision 1 - the agent never executes SQL
+
+The agent process imports zero database drivers. Not `asyncpg`, not `psycopg`, not SQLAlchemy. When the agent needs data to exist, it `POST`s a validated plan to the SUT's `/internal/scenarios/seed`, and the SUT runs the entire bundle inside one transaction. If anything fails, Postgres rolls back and there is no application-level saga to maintain.
+
+This is enforced by an architecture fitness test (`tests/architecture/test_no_sql_imports.py`) that greps the agent source tree for forbidden imports. It runs in CI on every push, so the rule cannot silently rot.
+
+### Decision 2 - the plan is gated by deterministic validators
+
+Before a plan reaches the SUT, four cross-entity validators check it for internal consistency: foreign keys resolve, dates are ordered correctly, synthetic-data markers are present (names start with `FAKE_`, addresses sit in state `ZZ`, NPIs are numeric-only), and enum values are in range. The MVP planner is rule-based and deterministic by design; a later phase adds an LLM-mode planner *behind the same validator gate*. The gate is not optional.
+
+### Decision 3 - cleanup is first-class and reversible
+
+Five reset strategies live in code and are demoable: `reset_run` cleans one run's rows, `reset_all` clears every tagged row across runs, `baseline_snapshot` captures the current Postgres state to Parquet in MinIO, `baseline_restore` deserializes a snapshot back, and `idempotent_seed` upserts reference rows safely. The cleanup token returned with each request is hashed (SHA-256) before persistence; the plaintext is shown to the caller exactly once. A leaked audit log does not reveal a replay token.
+
+### Decision 4 - the audit log is append-only at the architecture level
+
+There are no `DELETE`, `PUT`, or `PATCH` routes under `/audit/*`, and a fitness test (`test_audit_log_append_only.py`) keeps it that way. Audit events go to MinIO as Parquet, with Prometheus metrics on write latency and a hard `atdm_audit_dropped_events_total` invariant that must remain zero.
+
+### Decision 5 - fixtures match the framework, not a custom format
+
+Tests should not have to learn a new fixture format. ATDM emits Playwright JSON for Playwright tests and an importable pytest Python module for pytest tests. The `atdm.pytest` library ships a `@atdm_scenario(...)` decorator and an `atdm_data` fixture that auto-loads via a `pytest11` entry point, so the test author writes the scenario name and the data is just there.
+
+## The tech stack and why
+
+The choices favour standard, boring Python and well-supported infrastructure so the project reads as production-grade rather than experimental.
+
+- **Python 3.12 with PDM.** PDM gives a lockfile, project-relative path dependencies via `${PROJECT_ROOT}`, and PEP 621 metadata without needing Poetry's opinions. PEP 561 `py.typed` markers on the `atdm-client` package make downstream type checking work.
+- **FastAPI + Uvicorn** for both the agent and the SUT. Async-first, type hints drive the OpenAPI spec, and the test client is excellent.
+- **PostgreSQL 16 with `asyncpg`** for transactional integrity. No ORM: the SQL surface is small, the entities are well understood, and the schema lives in versioned migrations under `data/migrations/`.
+- **MinIO** for S3-compatible object storage. Catalog state, the audit log, and the emitted fixture files all live in three buckets (`atdm-catalog`, `atdm-audit`, `atdm-fixtures`) as Parquet, written with PyArrow. This is what makes baseline snapshot and restore practical.
+- **Typer** for the CLI. A small, narrow surface with a `--output (human|json)` flag so it is equally pleasant for humans and agentic callers.
+- **Docker Compose** with images pinned by `@sha256:...` digest. Reproducible local stack, deterministic image versions, no surprise rebuilds from upstream tag drift.
+- **Pico.css** for the audit UI, served from a CDN. Server-rendered HTML, no JavaScript build pipeline, page weight around 11 KB.
+- **`ruff` and `mypy --strict`** with namespace-aware configuration so the two `app` packages (one per FastAPI service) do not collide.
+
+The whole project lands in roughly 142 tests across unit, integration, architecture fitness, and end-to-end against live docker compose. CI runs four jobs per push: lint, test, architecture, and stack.
+
+## Quality tooling worth stealing
+
+Two things from the CI setup are easy wins on any Python project.
+
+- **Architecture fitness tests as CI gates.** Three small tests enforce rules that are otherwise easy to violate in code review: no SQL imports in the agent package, no mutating routes under `/audit/*`, no emoji in committed text. They run on every push and fail the build with a specific, actionable message.
+- **`pdm lock --check` as a pre-commit hook.** A stale lockfile silently broke CI for five commits at one point because the badge stayed red and no one noticed the underlying SVG. The fix is a one-line pre-commit hook that refuses to commit when the lockfile's content hash is stale.
+
+The repo also enforces `${PROJECT_ROOT}` for path dependencies (no host-absolute paths in `pyproject.toml`) and runs `mypy` in separate passes per source root to avoid the duplicate-package trap that bites projects with multiple `app/` directories.
+
+## How this speeds up a real project
+
+The hard ROI is in the loop. On a typical automation project, the steps to get a new scenario running are: dig through ten seed scripts, write SQL, test the SQL, integrate it into the fixture loader, write the actual test, debug the cleanup, and add the cleanup to whatever teardown runs. That is a half day if everything goes well.
+
+With ATDM, the same loop is:
+
+1. **Catalog the scenario once.** Add an entry to the scenario registry describing what entities, what state, and what business meaning. This is the only thing that requires domain thinking.
+2. **Tests request it by name.** `@atdm_scenario("claim_denial_expired_eligibility")` on a pytest test, or `atdm request ...` in CI shell. The fixture and cleanup token come back in one call.
+3. **Cleanup is automatic and reversible.** `reset_run` on test exit; `baseline_restore` if a parallel test corrupted shared state.
+
+Three concrete payoffs:
+
+- **Onboarding time drops.** A new engineer learns the CLI in an hour and can author a scenario in another. They never need to learn the SUT's database schema unless they want to.
+- **Flakes from leftover data essentially disappear.** Every run is tagged; every cleanup is scoped; the worst-case fallback (`baseline_restore`) takes seconds.
+- **Agentic test generators become viable.** An LLM agent that writes pytest tests can request data through the same narrow API as a human, with the same validator gate and the same audit trail. The blast radius of a bad agent action is bounded by the API.
+
+The quieter payoff is governance. Every action against the platform lands in the audit log. When a compliance reviewer or a senior QA lead asks what the agents did last sprint, the answer is a query, not an archaeology project.
+
+## Where it goes next
+
+The MVP is feature-complete. The roadmap focuses on:
+
+- **LLM-mode planner** behind the existing validator gate, so the same safety story holds with an agent-authored plan.
+- **MCP server** so the platform exposes its capabilities to MCP-aware agents directly.
+- **Vector retrieval over the scenario catalog**, so an agent asking for "a member who cannot get their claim paid because of timing" finds `claim_denial_expired_eligibility` without exact-string matching.
+- **Coverage intelligence** that joins scenario runs to requirement IDs and surfaces uncovered behaviors.
+- **Production hardening** - multi-tenant auth, RBAC on scenarios, pluggable masking policy engine - scoped for if a real consumer adopts the platform.
+
+## Try it
+
+The fastest way to form an opinion is to run it.
+
+```bash
+git clone https://github.com/NickBaynham/agentic-test-data-manager.git
+cd agentic-test-data-manager
+make setup && make up && make demo
+```
+
+Three minutes from clone to a live audit trail in your browser. From there the interesting reading is `docs/design-decisions.md` (the seven architectural calls), `docs/architecture.md` (the diagrams), and `docs/healthcare-domain-model.md` (the entity model the MVP scenarios are built on).
+
+Test data does not have to be the bottleneck. Treated as a first-class, agent-safe API surface - with validation, audit, and reversible cleanup as load-bearing primitives - it can be the thing that makes agentic QA possible at all.
