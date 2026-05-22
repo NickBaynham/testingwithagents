@@ -106,10 +106,10 @@ unit: _require-pkg
 	npx vitest run
 
 e2e: _require-pkg
-	npx playwright test --grep-invert @a11y
+	CI=true npx playwright test --grep-invert @a11y
 
 a11y: _require-pkg
-	npx playwright test --grep @a11y
+	CI=true npx playwright test --grep @a11y
 
 test: unit e2e a11y
 
@@ -129,5 +129,5 @@ deploy: _require-pkg _require-aws
 	  --branch-name "$(BRANCH)" \
 	  --job-type RELEASE
 
-ci: lint typecheck test build linkcheck
+ci: lint typecheck unit build e2e a11y linkcheck
 	@echo "Local CI complete."

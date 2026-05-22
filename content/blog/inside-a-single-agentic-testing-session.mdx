@@ -1,0 +1,233 @@
+---
+title: "Inside a single agentic testing session: from MCP exploration to a passing PyTest suite"
+slug: "inside-a-single-agentic-testing-session"
+excerpt: "A session walkthrough of the discovery-first agentic testing workflow against SauceDemo: explore with Playwright MCP, capture locator candidates as evidence, generate BDD specs, run fresh-eyes self-reviews that surface real issues, scaffold the Playwright/PyTest framework, and finish with 8/8 tests passing on the first run."
+publishedAt: "2026-05-21"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+tags:
+  - "agents"
+  - "mcp"
+  - "playwright"
+  - "pytest"
+  - "bdd"
+  - "claude-code"
+  - "session-walkthrough"
+---
+
+This is a companion to [From exploration to automation](/blog/from-exploration-to-automation-agentic-testing-workflow), which lays out the discovery-first workflow at a conceptual level. This post is the opposite shape: a single session in which we drove the entire pipeline end to end against the SauceDemo storefront, paused twice to improve the skills themselves, and ended with a passing PyTest suite checked in under `automation/`.
+
+The session is worth writing up because it exercises every skill in the project (`mcp-exploratory-testing`, `exploratory-to-bdd`, `agentic-playwright-automation`) and because two failure modes the project was designed to surface — locator drift between exploration and implementation, and an MCP-specific click reliability quirk — both showed up and were handled by the workflow rather than around it.
+
+## What was already in place
+
+At the start of the session the repository had:
+
+- Three skills under `.claude/skills/`, each with templates and checklists.
+- A handful of slash commands under `.claude/commands/` mapped to those skills.
+- A README describing the intended workflow.
+- An earlier blog post and a `cases/` directory of informal Markdown cases.
+- No `specs/`, no `sessions/`, no `automation/`.
+
+The skills already separated observation from spec from automation. What they did not yet do well was carry locator evidence from one stage to the next: exploration captured visible elements but not where they lived in the DOM, BDD specs treated automation as out of scope, and the automation skill had no documented contract for how to consume what exploration had seen. Most of the session ended up addressing that gap.
+
+## Stage 1: A first exploration run
+
+We started with the most basic invocation:
+
+```
+/explore-workflow https://www.saucedemo.com/ "standard user checkout flow"
+```
+
+The agent loaded the `mcp-exploratory-testing` skill, navigated to the site, and walked through the canonical happy-path checkout: sign in as `standard_user`, add a product, open the cart, fill the checkout form, submit, and verify the confirmation page. Each step landed in a session report at `sessions/mcp-exploration/saucedemo/standard-user-checkout-flow_session.md` with page observations, an action timeline, observed outcomes, anomalies, and candidate test cases.
+
+Two interesting things showed up in this first run.
+
+The header cart link on the inventory page had no accessible name. The accessibility snapshot did not surface it as an element at all until the cart badge appeared. We confirmed it existed with `browser_evaluate`, captured the gap as an Accessibility anomaly (APP-1), and moved on.
+
+More disruptive: a `browser_click` on the inventory Add to cart button returned success, but the application state did not change. The cart badge did not appear and the button text did not toggle. A follow-up `browser_evaluate` calling DOM `.click()` on the same element worked. We treated this as a Tooling Behavior anomaly (TOOL-1), used the DOM-click fallback for the rest of the navigation-advancing buttons, and recorded every fallback in Tooling Notes so the next step in the pipeline would know which clicks had relied on a workaround.
+
+When the session report was complete the browser stayed open. That immediately raised a question.
+
+## Interlude 1: Close the browser by default
+
+The first improvement of the session came from noticing that the exploration command never cleaned up. The fix was small but worth doing properly: rather than just closing the browser at the end of one run, we added an opt-out flag (`keep-browser-open`) and made `browser_close` the default at the command layer, then promoted the same rule into the skill itself so it would apply regardless of how the skill is invoked.
+
+That change touched four slash commands (`/explore-workflow`, `/explore-app`, `/explore-to-bdd`, `/execute-bdd-mcp`) and added a new Browser Lifecycle Rules section to `SKILL.md` with a corresponding check on the skill's Final Review Checklist. We committed and pushed.
+
+## Interlude 2: A locator-candidate handoff across three skills
+
+The second improvement was the big one. The first exploration had captured plenty of useful raw evidence — `data-test` attributes, role/name pairs, accessible names where they existed — but the skill did not have a structured place to record that as locator candidates with confidence and rationale, and the downstream skills (`exploratory-to-bdd` and `agentic-playwright-automation`) had no contract for receiving or using them.
+
+We extended all three skills:
+
+- `mcp-exploratory-testing` learned to capture locator candidates per page (element, type, role, accessible name, placeholder/label, test ID, candidate Playwright locator, confidence, rationale, notes), to record locator risks for repeated and conditional elements, and to populate an Automation Handoff Notes section at the end of the session report.
+- `exploratory-to-bdd` learned to preserve those candidates as optional Automation Notes inside the Markdown BDD spec, to add new Locator Candidate Reference and Locator Risk columns to the traceability matrix, and — explicitly — to keep raw selectors out of Gherkin.
+- `agentic-playwright-automation` learned to read the candidates back in and to produce a Locator Decision Log with one of five decision values for each element: Accepted, Accepted with Scope, Modified, Rejected, Needs Review.
+
+The change touched 38 files — three SKILL.md files, ten command files, twelve templates and examples, six checklists, a new template each in two skills, a new checklist in each, and a section in the project README. The clear intent was that locator candidates would flow as evidence between stages without ever leaking into Gherkin, and that final implementation decisions would always be explicit and reviewable.
+
+We committed and pushed.
+
+## Stage 1 again: exploration with the new contract
+
+We re-ran the exploration:
+
+```
+/explore-workflow https://www.saucedemo.com/ "standard user checkout workflow"
+```
+
+Same workflow, same six pages, but the session report now contained Locator Candidates, Locator Risks, and Repeated/Dynamic Elements tables per page, plus a structured Automation Handoff Notes section at the bottom. Notable observations the new contract surfaced:
+
+- The cart badge is conditional, visible only after the cart has items. Tests need locators that can assert both visible and hidden states.
+- Multiple Add to cart buttons share identical visible text across six product cards; a naïve text or role/name locator will match the first card, not the requested one. Per-product `data-test='add-to-cart-<slug>'` is the stable handle.
+- The header cart link has no accessible name (APP-1, reproduced).
+- The "Products" and "Your Cart" headers render as `generic` elements, not `heading` roles (a new anomaly, APP-5).
+- TOOL-1 reproduced. We documented the workaround again and noted that two reproductions in the same app increase confidence the issue is MCP-specific.
+
+## Stage 2: Generating BDD specs
+
+```
+/exploration-to-bdd sessions/mcp-exploration/saucedemo/standard-user-checkout-workflow_session.md
+```
+
+The `exploratory-to-bdd` skill consumed the session report and produced five artifacts under `specs/bdd/`:
+
+- A Markdown BDD spec with eight scenarios.
+- A Gherkin `.feature` file with the same eight scenarios in selector-free language.
+- A traceability matrix with the new Locator Candidate Reference and Locator Risk columns populated for every scenario.
+- An automation candidate review classifying each scenario by priority.
+- A BDD quality review.
+
+Six scenarios (TC-01 through TC-06) carried `@automatable` and High priority. Two carried `@needs-clarification`: TC-07 (cart-clear after order completion, inferred but not contracted) and TC-08 (checkout-information validation, never exercised in exploration). The Markdown spec's Automation Notes per scenario carried locator candidates forward — Gherkin stayed clean.
+
+## Stage 3: A self-review that found four real issues
+
+```
+/review-bdd specs/bdd/features/standard_user_checkout.feature
+```
+
+This is the part of the project that, in practice, makes a real difference: the review skill is supposed to be a fresh-eyes pass, even when the same session generated the artifact. The discipline is to apply both the BDD quality checklist and the ambiguity-and-defect checklist explicitly rather than reviewing in the abstract.
+
+Four Medium-severity issues came out of that pass that the generation step had missed:
+
+- **M-1:** TC-04's precondition said "with one item in the cart" without naming the item, while TC-05 and TC-06 explicitly named Sauce Labs Backpack. Implicit assumption.
+- **M-2:** TC-02's scenario title concatenated two outcomes with "and" — the title literally described two behaviors even though both were direct consequences of one action.
+- **M-3:** TC-05's `When the user reads the Item total, Tax, and Total values` is not really a user action; reading is implicit in any assertion.
+- **M-4:** TC-07's `Given the standard user has just completed a checkout` used temporal language ("just") where the rest of the spec anchored preconditions to specific pages.
+
+The review file was updated with all four issues, six Low-severity polish items, and an Approved with Changes recommendation. We left the fixes for later — they would not block automation if we resolved them at the test layer or in implementation rather than the spec.
+
+## Stage 4: Scaffold the framework
+
+```
+/setup-playwright-framework saucedemo
+```
+
+This generated 48 files under `automation/`: PDM-managed `pyproject.toml` with pinned dependencies, `pytest.ini` with a marker registry, a Makefile with the standard targets (`install`, `lint`, `format`, `test`, `test-ui`, `test-api`, `test-smoke`, `test-report`, `test-debug`, `clean`), environment configuration with a `Settings` loader that overlays `.env`, a `BasePage`, dataclass models, a YAML test-data loader, seven docs covering the framework's rules and standards, and one framework-smoke test that verifies pytest, the settings loader, and the test-data loader are wired together end to end.
+
+A setup report at `automation/reports/automation/framework_setup_report.md` summarized what was created and intentionally left untouched: no application page objects, no feature tests, no installed packages, no executed tests, no git operations.
+
+## Stage 5: A second self-review that found three more
+
+```
+/review-playwright-test automation
+```
+
+Reviewing one's own scaffold an hour after writing it is a useful exercise. The review applied all seven automation checklists and surfaced three Medium-severity issues:
+
+- **M-1:** `pytest-playwright` reads browser and headless settings from its own fixtures and CLI flags. Without a bridge, the `Settings.headless = false` value in `environments.yaml` would be silently ignored and the local browser would run headless against the developer's expectation.
+- **M-2:** `framework/data/factories.py` had inlined a `CheckoutCustomer` dataclass at module scope, while the project's own test-data standard said models belong under `framework/models/`. Two homes for the same kind of object will drift.
+- **M-3:** `framework/assertions/` had a README but no `__init__.py`. The first time someone added a helper there it would fail to import.
+
+Six Low-severity polish items rounded out the review. We applied all nine fixes:
+
+- Added `framework/assertions/__init__.py`.
+- Moved `CheckoutCustomer` into `framework/models/checkout_customer.py` and updated the factory to import it.
+- Overrode `browser_type_launch_args` in `tests/conftest.py` to consume `settings.headless`.
+- Removed an empty `[tool.pytest.ini_options]` block from `pyproject.toml`.
+- Routed `install-browsers` through the PDM script rather than the raw command.
+- Added per-function Source blocks to the framework-smoke test docstrings.
+- Extended the `clean` Makefile target to also remove `.ruff_cache` and `.mypy_cache`.
+- Dropped the unused `pydantic` dependency.
+- Wired a `pytest_runtest_makereport` hookwrapper that saves a screenshot via `framework/utils/evidence.py` whenever a failing test consumes the `page` fixture (a no-op for non-UI tests).
+
+`python3 -m ast` parsed every modified file cleanly.
+
+## Stage 6: Convert the BDD spec to automation
+
+```
+/convert-bdd-to-playwright specs/bdd/features/standard_user_checkout.feature
+```
+
+The `agentic-playwright-automation` skill implemented the six High-priority scenarios as a single PyTest test file plus six page objects, a `Product` data model, two YAML data files, and ten fixtures. The two `@needs-clarification` scenarios stayed skipped.
+
+The Locator Decision Log in the suite implementation report recorded 22 Accepted, 2 Accepted with Scope, and 5 Modified decisions. The 5 Modified decisions are the interesting ones — they are where the cross-reference between the BDD candidates and the source-session snapshot exposed a real issue:
+
+- The BDD candidates for the "Products" and "Your Cart" headings suggested `get_by_role("heading", name=...)`. The source session had noted those elements render as `generic`, not `heading`. We switched to `get_by_text(..., exact=True)`.
+- The BDD candidates for the Continue Shopping and three Cancel buttons suggested role+name regex matches. The source-session snapshot showed the accessible name was the concatenation of the back-arrow image label and the visible text — for example, `"Go back Continue Shopping"`. A role+name regex would have worked but been fragile. We switched to stable `data-test` attributes.
+
+Per-product locators (`add-to-cart-<slug>`, `remove-<slug>`) were generalized over any `Product` by using the model's `slug` property. The line-item row on the cart page does not expose a per-item `data-test`, so we scoped by product name via `page.locator(".cart_item").filter(has_text=product.name)`.
+
+For TC-05 (the arithmetic identity `Total = Item total + Tax`), the page object exposes both the locators and small read helpers that parse the trailing currency amount into `Decimal` via a regex. The test asserts the relational identity, not the exact tax value, because the tax rate is not a documented business rule.
+
+## The first run
+
+The user authorized executing the suite. We installed dependencies (`pdm install -d`), Playwright was already cached, and we ran:
+
+```
+HEADLESS=true pdm run pytest tests/ -v
+```
+
+The result:
+
+```
+tests/ui/test_framework_smoke.py::test_settings_loads_local_environment            PASSED
+tests/ui/test_framework_smoke.py::test_standard_user_loaded_from_test_data         PASSED
+tests/ui/test_standard_user_checkout.py::test_standard_user_logs_in_successfully   PASSED
+tests/ui/test_standard_user_checkout.py::test_adding_product_updates_cart_badge_and_toggles_button  PASSED
+tests/ui/test_standard_user_checkout.py::test_cart_lists_added_item_with_quantity_and_price          PASSED
+tests/ui/test_standard_user_checkout.py::test_checkout_information_advances_to_overview_with_valid_input  PASSED
+tests/ui/test_standard_user_checkout.py::test_overview_totals_satisfy_item_total_plus_tax_equals_total    PASSED
+tests/ui/test_standard_user_checkout.py::test_finishing_order_shows_confirmation_page                     PASSED
+
+============================== 8 passed in 4.37s ===============================
+```
+
+Eight passing on the first run. Two things from this matter more than the green ticks.
+
+The four Modified locator decisions all worked. They paid off because they were not invented in the implementation step — they were grounded in evidence from the source session that the BDD step had not fully propagated. If we had just trusted the BDD candidates blindly, the Continue Shopping button and the three Cancel buttons would have failed on first run; if we had blindly switched everything to `data-test`, we would have given up readability where role+name was perfectly stable (the Login, Checkout, Continue, Finish, and Back Home buttons all run on plain role+name).
+
+TOOL-1 did not reproduce. The Playwright Python API clicked every button reliably, including the inventory Add to cart that had silently failed twice during exploration. That confirms TOOL-1 is an MCP-specific tooling issue, not a Playwright issue, and it lets the implementation report close that risk with evidence rather than just speculation.
+
+## Closing the loop: M-2 and M-4 applied
+
+The last action of the session was to go back and apply two of the four Medium-severity BDD review fixes:
+
+- **M-2:** TC-02 renamed from `Adding one product updates the cart badge and toggles the Add button to Remove` to `Adding a product places it in the cart`. Both Then assertions retained — the new title says "places it in the cart" with the cart-badge and Remove-button checks reading as observable consequences of that single user action.
+- **M-4:** TC-07's Given replaced `has just completed a checkout` with `is on the order confirmation page after completing a checkout`. The `@needs-clarification` tag stayed.
+
+The renames propagated through the Gherkin file, the Markdown spec, the traceability matrix, the automation candidate review, the BDD quality review, the TC-02 test docstring, and the suite implementation report. M-1 was left because the implementation already names the cart item during Arrange. M-3 was left because it is a Gherkin-only concern that does not appear in the Python test layout.
+
+We re-ran the suite — still 8/8 in 4.58s — and committed.
+
+## Reflections
+
+A few things from this session stand out worth noting for future sessions.
+
+**The fresh-eyes review steps earned their keep.** Both `/review-bdd` and `/review-playwright-test` were applied to artifacts the same session had generated. In both cases the explicit checklist pass found Medium-severity issues the generation step had missed. The discipline of applying both quality checklists item by item, rather than reviewing in the abstract, is what made the difference.
+
+**Locator candidates as evidence, not implementation, is the right boundary.** During exploration we capture what the elements look like in the live application without committing to a final selector strategy. During BDD generation we preserve that evidence as optional notes in the Markdown spec, but Gherkin remains selector-free. During implementation we choose final locators, comparing each candidate against the project locator strategy and recording one of five decision values. When the application reveals an accessibility issue (APP-1, APP-5) that invalidates the obvious role+name candidate, we have the language and the table format to record what we chose instead and why.
+
+**TOOL-1 was a worked example of the framework distinguishing tooling issues from application issues.** The same control failed reliably under Playwright MCP and worked reliably under Playwright Python. The exploration phase captured both behaviors — the MCP failure as a Tooling Behavior anomaly, the DOM-click fallback as a tool workaround in the action timeline — and the implementation phase observed the issue did not reproduce. Both pieces of evidence are in the report; neither was masked.
+
+**The Modified locator decisions surfaced application defects.** APP-1 (cart link has no accessible name), APP-5 (page headers rendered as `generic`), and the back-arrow-button accessible-name concatenation all show up as Locator Risks Carried Forward in the implementation report. The tests work today because we routed around them, but the path back to the application team is intact — if those defects are fixed, the Modified locators should be re-evaluated.
+
+**Skill improvements paid off within the same session.** Closing the browser by default, and adding the locator-candidate handoff, both happened mid-session and were exercised by the next stage. The locator-candidate work in particular paid for itself five locator-decisions deep into the implementation report.
+
+## What this implies for agentic test workflows generally
+
+If there is one thing worth taking away from a session like this, it is that the right unit of automation is not "ask the model for tests" but "drive a pipeline of typed artifacts that each have explicit acceptance criteria." Exploration produces a session report with observable evidence and locator candidates. BDD generation produces specs that preserve the evidence as optional notes while keeping Gherkin behavioral. Self-review produces a checklist-grounded list of revisions with severities and rationales. Implementation produces page objects, fixtures, tests, and a Locator Decision Log that explains every choice. Each handoff is reviewable on its own terms, and each layer carries forward the open questions and risks that the prior layer raised rather than discarding them.
+
+That is the difference between AI as a code generator and AI as a quality engineering collaborator: the second one keeps the evidence trail intact and surfaces the issues the workflow was designed to catch, instead of papering over them.
