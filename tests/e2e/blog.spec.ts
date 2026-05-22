@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-test("blog index lists all six posts newest first", async ({ page }) => {
+test("blog index lists all seven posts newest first", async ({ page }) => {
   await page.goto("/blog/");
   await expect(page.getByRole("heading", { level: 1, name: /notes on testing/i })).toBeVisible();
 
   const titles = await page.getByRole("heading", { level: 2 }).allTextContents();
-  expect(titles[0]).toMatch(/exploratory testing with claude code/i);
-  expect(titles).toHaveLength(6);
+  expect(titles[0]).toMatch(/from exploration to automation/i);
+  expect(titles).toHaveLength(7);
 });
 
 test("category filter narrows the post list", async ({ page }) => {
@@ -46,7 +46,7 @@ test("home renders the three most recent posts in Latest writing", async ({ page
   });
   const titles = await section.getByRole("heading", { level: 3 }).allTextContents();
   expect(titles).toHaveLength(3);
-  expect(titles[0]).toMatch(/exploratory testing with claude code/i);
+  expect(titles[0]).toMatch(/from exploration to automation/i);
 });
 
 test("rss.xml is served with all post URLs", async ({ page }) => {
@@ -55,6 +55,7 @@ test("rss.xml is served with all post URLs", async ({ page }) => {
   const body = await response.text();
   expect(body).toContain("<rss");
   for (const slug of [
+    "from-exploration-to-automation-agentic-testing-workflow",
     "exploratory-testing-with-claude-code-and-playwright-mcp",
     "agentic-test-data-manager",
     "software-testing-for-the-agentic-era",
@@ -71,9 +72,9 @@ test("feed.json validates as JSON Feed 1.1 and lists the posts", async ({ page }
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(body.version).toBe("https://jsonfeed.org/version/1.1");
-  expect(body.items).toHaveLength(6);
+  expect(body.items).toHaveLength(7);
   expect(body.items[0].url).toContain(
-    "/blog/exploratory-testing-with-claude-code-and-playwright-mcp/",
+    "/blog/from-exploration-to-automation-agentic-testing-workflow/",
   );
 });
 
@@ -82,6 +83,7 @@ test("sitemap.xml includes every blog post route", async ({ page }) => {
   expect(response.status()).toBe(200);
   const body = await response.text();
   for (const slug of [
+    "from-exploration-to-automation-agentic-testing-workflow",
     "exploratory-testing-with-claude-code-and-playwright-mcp",
     "agentic-test-data-manager",
     "software-testing-for-the-agentic-era",
@@ -102,6 +104,7 @@ test("footer RSS link is present and points at /rss.xml", async ({ page }) => {
 });
 
 const POST_SLUGS = [
+  "from-exploration-to-automation-agentic-testing-workflow",
   "exploratory-testing-with-claude-code-and-playwright-mcp",
   "agentic-test-data-manager",
   "software-testing-for-the-agentic-era",

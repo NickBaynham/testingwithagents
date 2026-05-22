@@ -1,0 +1,1101 @@
+---
+title: "From exploration to automation: an agentic testing workflow with Claude Code, Playwright MCP, BDD, and PyTest"
+slug: "from-exploration-to-automation-agentic-testing-workflow"
+excerpt: "A discovery-first agentic testing workflow: explore the live app with Playwright MCP, convert observations into BDD specs with traceability, then generate Playwright/PyTest automation - preserving the insights that scripted-first automation throws away."
+publishedAt: "2026-05-22"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+tags:
+  - "agents"
+  - "mcp"
+  - "playwright"
+  - "pytest"
+  - "bdd"
+  - "claude-code"
+  - "exploratory-testing"
+---
+
+Software testing has always had a strange gap in the middle.
+
+On one side, we have exploratory testing: a human tester opens the application, follows a workflow, notices strange behavior, asks "what if?", and finds issues that scripted tests would never catch.
+
+On the other side, we have automated regression testing: deterministic scripts that run the same checks over and over in CI, protecting critical behavior from breaking.
+
+Both are valuable. Both are necessary. But the handoff between them is often weak.
+
+Exploratory testing produces notes, screenshots, memories, Slack messages, maybe a few bug reports. Automation produces code. Somewhere between those two worlds, a lot of insight gets lost.
+
+This project explores a different approach:
+
+Use an AI agent to help explore the application, capture structured observations, turn those observations into BDD-style specifications, and then convert selected scenarios into maintainable Playwright/PyTest automation.
+
+The goal is not to replace testers. The goal is to make testing work more observable, reusable, and scalable.
+
+The workflow can be summarized like this:
+
+Explore with MCP.
+Specify with BDD.
+Automate with Playwright.
+
+## The Problem: Test Automation Often Starts Too Early
+
+A common automation workflow looks like this:
+
+```
+Requirement → Test code → CI execution
+```
+
+That sounds efficient, but it skips a critical step: understanding the application behavior.
+
+Requirements are often incomplete. User stories are often vague. Acceptance criteria rarely describe every validation rule, transition, page state, or error condition. Meanwhile, the application itself may already contain behavior that is undocumented, inconsistent, or surprising.
+
+When we jump straight from requirement to automation, we risk automating assumptions.
+
+That creates several problems:
+
+- Tests may verify behavior that was guessed, not confirmed.
+- Exploratory insights are lost instead of converted into reusable artifacts.
+- Test code may become the first real documentation of a behavior.
+- Page objects and fixtures may be designed around one test instead of a real workflow.
+- Defects may be hidden by weak assertions or overly forgiving automation.
+
+A better workflow should preserve the value of exploration before automation begins.
+
+## The Core Idea
+
+Instead of asking an AI agent to immediately generate test code, we use it in stages.
+
+```
+Target URL + workflow scope
+        ↓
+Agent-driven browser exploration
+        ↓
+Structured exploration report
+        ↓
+BDD Markdown and Gherkin specs
+        ↓
+Traceability and quality review
+        ↓
+Automation candidate selection
+        ↓
+Python Playwright/PyTest implementation
+        ↓
+Execution and failure investigation
+```
+
+This creates a layered testing process:
+
+| Stage | Purpose | Main Output |
+|---|---|---|
+| Explore | Observe the live app | Exploration report |
+| Specify | Convert behavior into testable scenarios | BDD specs |
+| Review | Check ambiguity and automation value | Traceability and quality reports |
+| Automate | Implement selected scenarios | Playwright/PyTest tests |
+| Investigate | Diagnose failures with evidence | Failure reports |
+
+This is a discovery-first approach to agentic test automation.
+
+## The Three-Skill Model
+
+The workflow is organized around three Claude Code skills.
+
+### 1. MCP Exploratory Testing
+
+The first skill is responsible for browser-based exploration.
+
+It uses Playwright MCP to open a live web application, navigate workflows, inspect accessibility snapshots, perform actions, observe outcomes, and document what happened.
+
+This skill answers questions like:
+
+- What pages did we observe?
+- What actions were available?
+- What data was needed?
+- What happened after each action?
+- What state changed?
+- What anomalies appeared?
+- What test ideas emerged?
+- What page models might support future automation?
+
+It produces artifacts such as:
+
+```
+sessions/mcp-exploration/
+reports/exploration/
+```
+
+The key point: this skill does not generate automation code. It captures evidence.
+
+### 2. Exploratory to BDD
+
+The second skill converts exploration evidence into structured behavior specifications.
+
+It creates both:
+
+- human-readable Markdown BDD specs
+- Gherkin .feature files
+
+It also generates:
+
+- traceability matrices
+- automation candidate reviews
+- BDD quality reviews
+- open questions
+- potential defect notes
+
+This skill answers:
+
+- What behavior did we observe?
+- What expected behavior is supported by the requirement?
+- What assumptions are being made?
+- What scenarios are clear enough to automate?
+- What scenarios need clarification?
+- What should remain exploratory or manual?
+
+It produces artifacts such as:
+
+```
+specs/bdd/markdown/
+specs/bdd/features/
+specs/bdd/traceability/
+specs/bdd/reviews/
+specs/bdd/automation/
+```
+
+The key point: observed behavior is not automatically treated as intended behavior.
+
+### 3. Agentic Playwright Automation
+
+The third skill converts approved behavior specs into maintainable automation.
+
+It generates or updates:
+
+- Playwright/PyTest tests
+- page objects
+- fixtures
+- test data files
+- data models
+- environment configuration
+- implementation reports
+- failure investigation reports
+
+It produces artifacts such as:
+
+```
+automation/tests/
+automation/framework/
+automation/test_data/
+automation/config/
+automation/reports/
+```
+
+The key point: automation is generated inside a framework with explicit standards. The agent is not free to invent a new structure every time.
+
+## Walkthrough: SauceDemo Checkout Flow
+
+To demonstrate the workflow, let's use SauceDemo, a public demo e-commerce site commonly used for automation practice.
+
+The target workflow:
+
+Explore the standard user checkout flow.
+
+The rough business flow is:
+
+1. Log in as a standard user.
+2. Review the inventory page.
+3. Add a product to the cart.
+4. Open the cart.
+5. Proceed to checkout.
+6. Enter checkout information.
+7. Review the order summary.
+8. Finish checkout.
+9. Confirm the success message.
+
+### Step 1: Explore the Application with Playwright MCP
+
+We start with a bounded exploration prompt:
+
+```
+/explore-workflow https://www.saucedemo.com/ "standard user checkout flow"
+```
+
+The agent uses Playwright MCP to drive the browser.
+
+It opens the site, inspects the login page, fills the known demo credentials, submits the form, observes the inventory page, adds an item to the cart, walks through checkout, and records each state change.
+
+The output is not test code. It is a structured exploration report.
+
+Example output path:
+
+```
+sessions/mcp-exploration/saucedemo/standard_user_checkout_session.md
+```
+
+A good exploration report includes:
+
+```markdown
+# MCP Exploration Session: Standard User Checkout Flow
+
+## Session Metadata
+| Field | Value |
+|---|---|
+| Application | SauceDemo |
+| Target URL | https://www.saucedemo.com/ |
+| Workflow | Standard user checkout |
+| Tooling | Claude Code + Playwright MCP |
+| Browser | Chromium |
+| Tester | Claude Code agent, human-directed |
+
+## Exploration Scope
+Explore the standard user shopping and checkout workflow:
+1. Login as standard user.
+2. Review inventory page.
+3. Add a product to cart.
+4. Navigate to cart.
+5. Proceed to checkout.
+6. Submit checkout information.
+7. Review checkout overview.
+8. Finish checkout.
+9. Return to inventory.
+
+## Test Data Used
+| Data Item | Value | Source | Notes |
+|---|---|---|---|
+| Username | standard_user | Demo app login page | Public demo credential |
+| Password | secret_sauce | Demo app login page | Public demo credential |
+| First Name | Test | Agent generated | Synthetic checkout data |
+| Last Name | User | Agent generated | Synthetic checkout data |
+| Postal Code | 92688 | Agent generated | Synthetic checkout data |
+```
+
+The report then describes each page observed.
+
+For example:
+
+```markdown
+## Pages Observed
+
+### Login Page
+**URL:** `/`
+**Purpose:**
+Allows a user to authenticate.
+
+#### Observed Elements
+- Username input
+- Password input
+- Login button
+- Accepted usernames text
+- Password information text
+
+#### Actions Available
+- Enter username
+- Enter password
+- Submit login
+
+#### Candidate Assertions
+- Login page displays username field.
+- Login page displays password field.
+- Login page displays login button.
+```
+
+And it records the workflow as an action timeline:
+
+```markdown
+## Action Timeline
+| Step | Action | Observed Result | Evidence | Notes |
+|---:|---|---|---|---|
+| 1 | Open target URL | Login page displayed | MCP snapshot |  |
+| 2 | Fill username/password | Form fields populated | MCP snapshot | Used seeded credentials |
+| 3 | Click Login | Redirected to inventory page | URL `/inventory.html` |  |
+| 4 | Add Backpack to cart | Button changed to Remove; cart badge displayed `1` | MCP snapshot |  |
+| 5 | Open cart | Cart page displayed Backpack with quantity 1 | MCP snapshot |  |
+| 6 | Checkout | Checkout information page displayed | MCP snapshot |  |
+| 7 | Fill checkout info | Continued to overview page | MCP snapshot |  |
+| 8 | Finish checkout | Confirmation page displayed | MCP snapshot |  |
+| 9 | Back Home | Inventory page displayed | MCP snapshot |  |
+```
+
+This is already valuable. The exploration is no longer trapped in memory or buried in a chat transcript. It becomes a reusable test artifact.
+
+### Step 2: Record Outcomes and Anomalies
+
+The exploration skill also records observed outcomes.
+
+Example:
+
+```markdown
+## Observed Outcomes
+- Standard user can log in successfully.
+- Inventory page loads after login.
+- Product can be added to cart.
+- Cart badge updates after adding product.
+- Cart page displays selected product.
+- Checkout flow accepts first name, last name, and postal code.
+- Checkout overview displays item total, tax, and total.
+- Finish action displays confirmation message.
+- Back Home returns user to inventory page.
+```
+
+Just as importantly, it records anomalies.
+
+Example:
+
+```markdown
+## Anomalies and Risks
+| ID | Type | Observation | Severity | Recommendation |
+|---|---|---|---|---|
+| ANOM-001 | Tooling Behavior | MCP click returned success in one case but the React handler did not fire | Medium | Retry with DOM click through evaluate and document as tooling nuance |
+| ANOM-002 | Application Behavior | Reset App State cleared cart badge but button label did not re-render until reload | Needs Review | Clarify expected behavior before encoding as requirement |
+```
+
+This matters because it prevents a common automation mistake: encoding weird behavior as if it were the requirement.
+
+The agent must distinguish:
+
+Observed behavior
+
+from:
+
+Expected behavior
+
+That distinction is central to the workflow.
+
+### Step 3: Generate Candidate Test Cases
+
+The exploration report then proposes candidate tests.
+
+```markdown
+## Candidate Test Cases
+| Candidate ID | Title | Priority | Notes |
+|---|---|---|---|
+| TC-001 | Standard user login | High | Core smoke path |
+| TC-002 | Add product to cart | High | Core shopping behavior |
+| TC-003 | Review cart contents | High | Validates selected product |
+| TC-004 | Complete checkout | High | End-to-end business flow |
+| TC-005 | Return home after checkout | Medium | Useful navigation check |
+| TC-006 | Reset app state | Medium | Needs clarification due DOM lag |
+```
+
+This is not yet automation. It is a test design inventory.
+
+That is an important intermediate layer.
+
+Some test ideas should become automation. Some should become follow-up exploratory checks. Some should become product questions. Some may not be worth preserving at all.
+
+The agent can help produce the list, but humans should still review priority and value.
+
+### Step 4: Convert Exploration to BDD
+
+Once the exploration report is created, the next command converts it into BDD artifacts:
+
+```
+/generate-bdd sessions/mcp-exploration/saucedemo/standard_user_checkout_session.md
+```
+
+This uses the exploratory-to-bdd skill.
+
+The expected output:
+
+```
+specs/bdd/markdown/checkout.md
+specs/bdd/features/checkout.feature
+specs/bdd/traceability/checkout_traceability_matrix.md
+specs/bdd/reviews/checkout_bdd_quality_review.md
+specs/bdd/automation/checkout_automation_candidates.md
+```
+
+The Markdown BDD spec is designed for human review.
+
+Example:
+
+```markdown
+# Feature: Standard User Checkout
+
+## Business Goal
+Allow a standard user to purchase an item through the SauceDemo checkout workflow.
+
+## Source Material
+- Exploration session: `sessions/mcp-exploration/saucedemo/standard_user_checkout_session.md`
+- Browser observations: Login, inventory, cart, checkout information, checkout overview, and confirmation pages
+
+## Assumptions
+- Public SauceDemo credentials are acceptable for this demo.
+- The standard user can complete checkout with synthetic customer data.
+- Item totals may be validated using known demo data.
+
+## Open Questions
+- Should reset app state immediately update all visible button states?
+- Should postal code format be validated?
+- Should product price changes be treated as test failures or data changes?
+
+## Scenario: Standard user completes checkout
+**Scenario ID:** TC-004
+**Tags:** `@ui` `@smoke` `@checkout` `@automatable`
+**Automation Priority:** High
+**Priority Rationale:** This is a critical end-to-end purchase workflow.
+
+### Given
+- The user is on the SauceDemo login page.
+- The user has valid standard user credentials.
+
+### When
+- The user logs in.
+- The user adds Sauce Labs Backpack to the cart.
+- The user opens the cart.
+- The user proceeds to checkout.
+- The user submits valid checkout information.
+- The user finishes checkout.
+
+### Then
+- The checkout confirmation page is displayed.
+- The confirmation message says `Thank you for your order!`.
+- The Back Home button is visible.
+
+### Test Data
+| Field | Value | Source | Notes |
+|---|---|---|---|
+| username | standard_user | Demo app | Public demo credential |
+| password | secret_sauce | Demo app | Public demo credential |
+| product | Sauce Labs Backpack | Inventory observation | Stable demo product |
+| first_name | Test | Synthetic | Demo checkout data |
+| last_name | User | Synthetic | Demo checkout data |
+| postal_code | 92688 | Synthetic | Demo checkout data |
+
+### Observed Evidence
+- Successful login redirected to `/inventory.html`.
+- Adding the Backpack displayed cart badge `1`.
+- Cart page displayed Backpack with quantity `1`.
+- Completing checkout displayed `Thank you for your order!`.
+```
+
+The same behavior can also be represented in Gherkin:
+
+```gherkin
+@ui @checkout
+Feature: Standard User Checkout
+  A standard user should be able to purchase an item through the checkout workflow.
+
+  Background:
+    Given the user is on the SauceDemo login page
+
+  @smoke @automatable
+  Scenario: Standard user completes checkout
+    Given the user logs in with valid standard user credentials
+    And the user adds "Sauce Labs Backpack" to the cart
+    And the user opens the cart
+    When the user completes checkout with valid customer information
+    Then the checkout confirmation page is displayed
+    And the confirmation message says "Thank you for your order!"
+    And the Back Home button is visible
+```
+
+The BDD spec gives product, QA, and engineering a shared language before automation code is written.
+
+### Step 5: Build Traceability
+
+The BDD skill also creates a traceability matrix.
+
+Example:
+
+```markdown
+# Traceability Matrix: Checkout
+| Case ID | Feature | Scenario | Source Type | Source Reference | Observed Evidence | Expected Outcome | Automation Priority | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| TC-001 | Login | Standard user logs in | MCP Session | standard_user_checkout_session.md | Redirected to `/inventory.html` | Inventory page is displayed | High | Ready | Core smoke case |
+| TC-002 | Cart | Add product to cart | MCP Session | standard_user_checkout_session.md | Cart badge changed to `1` | Product is added to cart | High | Ready | Core shopping behavior |
+| TC-004 | Checkout | Standard user completes checkout | MCP Session | standard_user_checkout_session.md | Confirmation message displayed | Checkout completes successfully | High | Ready | E2E smoke candidate |
+```
+
+This is where the process becomes much more professional.
+
+Traceability shows:
+
+Where did this test idea come from?
+What evidence supports it?
+Is it ready for automation?
+What is its priority?
+
+For teams, this is incredibly useful. It connects exploration, specification, and automation.
+
+### Step 6: Review BDD Quality
+
+Before automation, the BDD specs should be reviewed.
+
+```
+/review-bdd specs/bdd/features/checkout.feature
+```
+
+The review asks:
+
+- Are scenarios focused?
+- Are expected outcomes clear?
+- Are assumptions documented?
+- Are open questions captured?
+- Is observed behavior separated from expected behavior?
+- Is automation priority justified?
+- Are any scenarios too broad?
+- Are any scenarios too vague?
+- Are any suspected defects documented separately?
+
+Example review output:
+
+```markdown
+# BDD Quality Review: Checkout
+
+## Summary
+The checkout scenarios are clear, behavior-focused, and suitable for UI automation. Reset App State behavior should remain marked as Needs Review because the observed DOM state may lag behind the underlying application state.
+
+## Review Results
+| Check | Status | Notes |
+|---|---|---|
+| Scenarios are focused | Pass | Checkout flow is represented as one coherent E2E scenario |
+| Expected outcomes are clear | Pass | Confirmation message and Back Home button are testable |
+| Observed vs intended behavior is separated | Pass | Reset behavior is documented separately |
+| Traceability is preserved | Pass | Scenarios map back to MCP exploration session |
+| Automation priority is justified | Pass | Checkout is a high-value smoke path |
+
+## Approval Recommendation
+Approved with Changes
+```
+
+The purpose is not bureaucracy. It is quality control.
+
+The agent can generate a lot quickly. Review keeps it from becoming a spec factory full of nonsense.
+
+### Step 7: Select Automation Candidates
+
+Not every scenario should become automation.
+
+Some checks are better as:
+
+- manual exploratory tests
+- product questions
+- one-time investigations
+- API tests
+- unit tests
+- accessibility audits
+- visual reviews
+
+The automation candidate report helps decide.
+
+Example:
+
+```markdown
+# Automation Candidate Review: Checkout
+| Scenario ID | Scenario | Priority | Recommended Automation Type | Rationale | Risks | Notes |
+|---|---|---|---|---|---|---|
+| TC-001 | Standard user logs in | High | Playwright UI | Core smoke path | Low | Stable demo flow |
+| TC-002 | Add product to cart | High | Playwright UI | Critical shopping behavior | Low | Good regression candidate |
+| TC-004 | Standard user completes checkout | High | Playwright UI | Business-critical E2E flow | Medium | Longer UI flow, may be slower |
+| TC-006 | Reset app state | Medium | Manual Review / Needs Clarification | Observed DOM lag | Medium | Clarify expected behavior first |
+```
+
+This is where human judgment enters.
+
+The agent can recommend. The tester decides.
+
+### Step 8: Convert Approved BDD to Playwright/PyTest
+
+Now automation begins.
+
+```
+/convert-bdd-to-playwright specs/bdd/features/checkout.feature
+```
+
+This uses the agentic-playwright-automation skill.
+
+The automation framework has explicit standards:
+
+- Python + PyTest + Playwright
+- top-level assertions
+- page objects for actions and locators
+- fixtures for pages, config, and data
+- external test data
+- environment-based configuration
+- no hard-coded URLs
+- no arbitrary waits
+- no time.sleep
+- traceability back to the BDD spec
+
+Expected output:
+
+```
+automation/tests/ui/test_checkout.py
+automation/framework/pages/login_page.py
+automation/framework/pages/inventory_page.py
+automation/framework/pages/cart_page.py
+automation/framework/pages/checkout_info_page.py
+automation/framework/pages/checkout_overview_page.py
+automation/framework/pages/checkout_complete_page.py
+automation/test_data/local/users.yaml
+automation/test_data/local/products.yaml
+automation/test_data/local/checkout.yaml
+automation/reports/automation/checkout_implementation_report.md
+```
+
+A generated test should look something like this:
+
+```python
+import pytest
+from playwright.sync_api import expect
+
+
+@pytest.mark.ui
+@pytest.mark.smoke
+@pytest.mark.checkout
+def test_standard_user_can_complete_checkout(
+    login_page,
+    inventory_page,
+    cart_page,
+    checkout_info_page,
+    checkout_overview_page,
+    checkout_complete_page,
+    standard_user,
+    backpack_product,
+    checkout_customer,
+):
+    """
+    Source:
+    - BDD Spec: specs/bdd/features/checkout.feature
+    - Scenario: Standard user completes checkout
+    """
+    # Arrange
+    login_page.open()
+    login_page.login_as(standard_user)
+
+    # Act
+    inventory_page.add_product_to_cart(backpack_product.name)
+    inventory_page.open_cart()
+    cart_page.proceed_to_checkout()
+    checkout_info_page.submit_customer_information(checkout_customer)
+    checkout_overview_page.finish_checkout()
+
+    # Assert
+    expect(checkout_complete_page.confirmation_heading).to_have_text(
+        "Thank you for your order!"
+    )
+    expect(checkout_complete_page.back_home_button).to_be_visible()
+```
+
+Notice what this test does well:
+
+- It reads like a behavior scenario.
+- The assertion is visible at the test level.
+- Test data comes from fixtures.
+- Page objects perform actions.
+- Business expectations are not hidden inside helper methods.
+- The source BDD spec is referenced.
+
+This is what makes the framework agent-friendly and human-readable.
+
+### Step 9: Use Page Objects Without Hiding Intent
+
+A page object should expose actions and locators.
+
+Example:
+
+```python
+from playwright.sync_api import Page
+
+
+class LoginPage:
+    def __init__(self, page: Page, base_url: str):
+        self.page = page
+        self.base_url = base_url
+
+    @property
+    def username_input(self):
+        return self.page.get_by_placeholder("Username")
+
+    @property
+    def password_input(self):
+        return self.page.get_by_placeholder("Password")
+
+    @property
+    def login_button(self):
+        return self.page.get_by_role("button", name="Login")
+
+    @property
+    def error_message(self):
+        return self.page.locator("[data-test='error']")
+
+    def open(self):
+        self.page.goto(self.base_url)
+
+    def login_as(self, user):
+        self.username_input.fill(user.username)
+        self.password_input.fill(user.password)
+        self.login_button.click()
+```
+
+This is good because it keeps interaction reusable while preserving test readability.
+
+What we do not want is this:
+
+```python
+def login_and_verify_success(self, user):
+    self.username_input.fill(user.username)
+    self.password_input.fill(user.password)
+    self.login_button.click()
+    expect(self.page.get_by_text("Products")).to_be_visible()
+```
+
+That hides the important assertion inside the page object.
+
+The test should say what it expects.
+
+The page object should know how to interact.
+
+### Step 10: Externalize Test Data
+
+The framework should avoid hard-coded data in tests.
+
+Example:
+
+```yaml
+users:
+  standard_user:
+    username: standard_user
+    password: secret_sauce
+products:
+  backpack:
+    name: Sauce Labs Backpack
+    price: 29.99
+checkout_customers:
+  default_customer:
+    first_name: Test
+    last_name: User
+    postal_code: 92688
+```
+
+Fixtures load this data:
+
+```python
+@pytest.fixture
+def standard_user(test_data):
+    return User(**test_data["users"]["standard_user"])
+
+
+@pytest.fixture
+def backpack_product(test_data):
+    return Product(**test_data["products"]["backpack"])
+
+
+@pytest.fixture
+def checkout_customer(test_data):
+    return CheckoutCustomer(**test_data["checkout_customers"]["default_customer"])
+```
+
+This makes the test more portable and easier for both humans and agents to extend.
+
+### Step 11: Run the Tests
+
+From the automation directory:
+
+```bash
+make install
+make test-ui
+make test-report
+```
+
+A useful Makefile might include:
+
+```makefile
+install:
+	pdm install
+	pdm run playwright install
+
+lint:
+	pdm run ruff check .
+
+format:
+	pdm run black .
+
+test:
+	pdm run pytest
+
+test-ui:
+	pdm run pytest tests/ui
+
+test-smoke:
+	pdm run pytest -m smoke
+
+test-report:
+	pdm run pytest --html=reports/html/report.html --self-contained-html --junitxml=reports/junit/results.xml
+
+test-debug:
+	PWDEBUG=1 pdm run pytest tests/ui -s
+```
+
+The framework should produce:
+
+```
+automation/reports/html/
+automation/reports/junit/
+automation/reports/traces/
+automation/reports/screenshots/
+automation/reports/automation/
+```
+
+The goal is not just to run tests. The goal is to produce evidence.
+
+### Step 12: Investigate Failures
+
+When a test fails, the agent should not immediately change code.
+
+It should investigate.
+
+```
+/investigate-playwright-failure automation/tests/ui/test_checkout.py::test_standard_user_can_complete_checkout
+```
+
+The failure investigation skill should:
+
+1. Re-run the failing test in isolation.
+2. Review PyTest output.
+3. Review screenshots, traces, videos, and logs.
+4. Check config.
+5. Check test data.
+6. Compare against the BDD source.
+7. Classify the failure.
+8. Fix only the correct layer.
+9. Generate a defect note if application behavior appears wrong.
+
+Failure categories include:
+
+- Product Defect
+- Test Data Issue
+- Locator Issue
+- Environment Issue
+- Timing/Flakiness
+- Framework Issue
+- Tooling Issue
+- Ambiguous Requirement
+
+A good failure report might look like this:
+
+```markdown
+# Playwright Failure Investigation: Checkout Confirmation Missing
+
+## Failed Test
+automation/tests/ui/test_checkout.py::test_standard_user_can_complete_checkout
+
+## Failure Category
+Product Defect
+
+## Evidence Reviewed
+- PyTest output
+- Playwright screenshot
+- Playwright trace
+- Source BDD spec
+- Checkout test data
+
+## Expected Behavior
+The checkout confirmation page displays `Thank you for your order!`.
+
+## Actual Behavior
+The checkout completion page loaded, but the confirmation message was not visible.
+
+## Root Cause Assessment
+The test completed the documented checkout flow successfully, but the expected confirmation message was absent. No invalid test data or locator issue was identified.
+
+## Recommended Action
+Raise a potential product defect. Do not weaken the assertion.
+
+## Follow-Up
+- Confirm expected copy with product owner.
+- Re-run after application fix.
+```
+
+This is a critical guardrail.
+
+Agents are very good at making tests pass. That can be dangerous.
+
+The correct behavior is not "make it green." The correct behavior is "understand what failed."
+
+## The Value This Adds to a Project
+
+This workflow adds value in several ways.
+
+### 1. It preserves exploratory testing insights
+
+Exploratory testing often produces valuable discoveries that never become durable artifacts.
+
+This workflow turns exploration into:
+
+- session reports
+- observed outcomes
+- anomaly logs
+- candidate test cases
+- candidate page models
+- open questions
+
+That means exploratory testing becomes reusable.
+
+Instead of vanishing after the session, it becomes a source for BDD specs, regression tests, and product conversations.
+
+### 2. It improves test design before code is written
+
+The BDD generation phase forces the team to ask:
+
+- What are we actually testing?
+- What is expected?
+- What was only observed?
+- What is unclear?
+- What deserves automation?
+- What should stay manual?
+
+This prevents the team from blindly automating whatever the agent saw.
+
+That distinction is important.
+
+Automation should preserve clarified behavior, not undocumented accidents.
+
+### 3. It creates traceability
+
+With the traceability matrix, each automated test can point back to:
+
+- an exploration session
+- a BDD scenario
+- an acceptance criterion
+- observed evidence
+- an automation priority decision
+
+That makes the test suite easier to audit and maintain.
+
+When someone asks "why do we have this test?", the answer is not buried in Git history.
+
+It is documented.
+
+### 4. It makes automation generation safer
+
+A raw AI code generation workflow can easily create inconsistent patterns.
+
+This project reduces that risk by giving the agent:
+
+- a framework structure
+- coding standards
+- page object rules
+- fixture rules
+- locator strategy
+- test data standards
+- failure investigation rules
+- implementation report requirements
+
+The agent is not just writing code. It is writing code inside a governed system.
+
+### 5. It supports human-in-the-loop QA
+
+This workflow does not remove human judgment.
+
+It creates review points:
+
+1. Review exploration report.
+2. Review BDD specs.
+3. Review automation candidates.
+4. Review generated tests.
+5. Review failure investigations.
+6. Approve defects or code changes.
+
+That is the right model for AI-assisted QA.
+
+The agent accelerates the work. The human owns the decisions.
+
+### 6. It improves communication across roles
+
+Product people can read the Markdown BDD specs.
+
+QA can review the scenarios and test data.
+
+Developers can inspect the traceability and failure evidence.
+
+Automation engineers can review the generated Playwright/PyTest code.
+
+Managers can understand the coverage story.
+
+This creates a shared testing language.
+
+### 7. It creates a better portfolio story
+
+For an AI-augmented QA or SDET portfolio, this workflow is much stronger than simply showing generated Playwright scripts.
+
+It demonstrates:
+
+- exploratory testing skill
+- agent orchestration
+- test design
+- BDD thinking
+- automation architecture
+- Playwright best practices
+- PyTest framework design
+- traceability
+- reporting
+- failure analysis
+- human-in-the-loop governance
+
+That is the kind of project that communicates senior-level judgment.
+
+## Why Not Just Generate Tests Directly?
+
+Because direct generation skips too much.
+
+A direct prompt like this:
+
+Generate Playwright tests for SauceDemo checkout.
+
+might produce working code.
+
+But it probably will not produce:
+
+- a bounded exploration record
+- observed anomalies
+- clear separation of observed vs expected behavior
+- BDD specs
+- automation priority rationale
+- traceability
+- review artifacts
+- failure investigation discipline
+- reusable framework standards
+
+The code may pass, but the process is weaker.
+
+This project is about building a testing workflow, not just producing scripts.
+
+## What This Means for the Future of QA
+
+This approach points to a practical future for AI in testing.
+
+Not:
+
+AI replaces testers.
+
+But:
+
+AI helps testers explore, document, specify, automate, and investigate faster.
+
+The best use of an agent is not to blindly churn out test code.
+
+The best use is to assist across the whole quality lifecycle:
+
+Discovery → Specification → Automation → Execution → Investigation
+
+That is where the real value appears.
+
+## Final Takeaway
+
+The strongest version of AI-assisted testing is not "prompt to code."
+
+It is a structured workflow:
+
+Explore with MCP.
+Specify with BDD.
+Automate with Playwright.
+Investigate with evidence.
+
+This creates a disciplined path from live application behavior to maintainable regression coverage.
+
+It preserves exploratory insights, improves test design, creates traceability, supports human review, and gives automation engineers a safer way to use AI agents.
+
+The result is not just faster test creation.
+
+The result is a better testing system.
