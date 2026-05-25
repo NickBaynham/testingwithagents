@@ -1,0 +1,159 @@
+---
+title: "Skill-driven exploratory testing of OWASP Juice Shop with Claude Code and the Playwright MCP"
+slug: "skill-driven-exploratory-testing-juice-shop"
+excerpt: "Two bounded Playwright MCP sessions against OWASP Juice Shop, driven by the mcp-exploratory-testing skill: an App Reconnaissance recon then anonymous product browsing. Captures the skill-driven workflow, the mat-paginator touch-target trap, nine classified anomalies, and the handoff pattern that connects exploration to BDD generation without inventing requirements."
+publishedAt: "2026-05-25"
+categories:
+  - "Agentic Testing"
+  - "Tool Reviews"
+tags:
+  - "agents"
+  - "mcp"
+  - "playwright"
+  - "exploratory-testing"
+  - "claude-code"
+  - "owasp-juice-shop"
+  - "skills"
+---
+
+Exploratory testing produces its best evidence when a tester sees the application live and reasons about what changed when they touched it. The hard part is the artifact: a freeform Slack thread or a few screenshots in a wiki rarely survive long enough to be useful when someone else has to write tests against the same surface six weeks later. This session was an attempt to get the live-driving part of exploratory testing — done by Claude Code through the Playwright MCP — to land in a structured, reviewable Markdown artifact that a downstream BDD generator can read without re-discovery.
+
+The target was a local OWASP Juice Shop v20.0.0 instance at `http://127.0.0.1:3000/#/`. The agent ran two bounded sessions: a non-destructive **App Reconnaissance** session that mapped the surface, followed by a single **Bounded Workflow Exploration** session covering anonymous product browsing. Both sessions are checked into `sessions/mcp-exploration/juice-shop/` and total 840 lines of Markdown.
+
+This post walks through the plugin setup, the skill-driven workflow it enables, the findings from each session, and the handoff pattern that connects exploration to BDD generation.
+
+## The plugin stack
+
+Three Claude Code plugins were installed for this work, in addition to the Playwright MCP that ships with Claude Code:
+
+- `mcp-exploratory-testing` — the skill that drives the live Playwright MCP session and writes a structured exploration report.
+- `exploratory-to-bdd` — the next skill in the pipeline. Reads an exploration report and produces Markdown BDD specs and Gherkin `.feature` files.
+- `agentic-playwright-automation` — the final stage. Generates Python Playwright/PyTest automation from approved BDD specs.
+
+The install was three `/plugin` commands followed by `/reload-plugins`. After reload, Claude Code reported `20 plugins · 31 skills · 13 agents · 4 hooks · 4 plugin MCP servers`. The skills become callable via slash commands like `/mcp-exploratory-testing:mcp-exploratory-testing`, with optional workflow-name arguments.
+
+The pipeline they form is the load-bearing idea:
+
+```
+Target URL + workflow scope
+  -> mcp-exploratory-testing       (this session)
+  -> Structured exploration session report (Markdown)
+  -> exploratory-to-bdd
+  -> Markdown BDD specs + Gherkin .feature files
+  -> agentic-playwright-automation
+  -> Python Playwright/PyTest tests
+```
+
+Each stage is a separate skill with explicit inputs and outputs. None of the skills generate code from a stage they are not responsible for. The exploration skill, for example, will not write Gherkin no matter how obvious the conversion looks. That discipline turns out to matter: it means each artifact in the chain is reviewable on its own terms, and the next agent down the line never has to guess what the previous one meant.
+
+## Why a skill rather than a free-form prompt
+
+The exploration skill is roughly 200 lines of prose. Most of it is rules:
+
+- Prefer accessibility snapshots over screenshots. The accessibility tree is structured text the model can parse directly; a screenshot is a black box.
+- Every action must have an observed result. Not "expected to advance to page 2" — the observed paginator status read off the DOM.
+- Application anomalies and tooling anomalies stay in distinct rows. A flaky Playwright click is not a product defect, and pretending otherwise corrupts the report.
+- Do not invent requirements. If the test passes only because of an assumption, tag the assumption.
+- Do not destructively modify application state without explicit authorization.
+- Use `browser_evaluate` sparingly. When it is used as a workaround for a click that returned success but did not trigger the application, mark the timeline entry as a Tool Workaround and record the limitation.
+- No BDD, no Gherkin, no Playwright code from this skill. That belongs to the next skill in the chain.
+
+The point of skills is the rules. A bare prompt can produce a fine session report on the first run, but the second one will drift, and the third will be unreviewable. The skill turns "be a careful exploratory tester" into a checklist the agent runs against every report before returning.
+
+## Session 1: App Reconnaissance
+
+The first slash command was `/mcp-exploratory-testing:mcp-exploratory-testing` with no arguments. The agent asked three questions — target URL, workflow scope, output directory — and proceeded with `App Reconnaissance`, the bounded recon variant of the skill.
+
+Recon is intentionally shallow. The goal is to map the surface, not to test it. The agent enumerated:
+
+- Six distinct page views: landing/catalog, side navigation drawer, account menu (anonymous), login page, customer feedback page, and the score board.
+- Twelve candidate test cases with observable expected results, prioritized.
+- Five anomalies (mixed app and tooling), each with a recommendation and a status.
+- A list of six follow-up bounded workflows in priority order.
+
+The most informative findings were the small ones:
+
+- The account menu in anonymous state exposes exactly one item: "Login". That sounds trivial until you realize how easy it is to ship a build where a stale `Logout` entry leaks into anonymous chrome.
+- The Customer Feedback CAPTCHA prompt at session time was the literal arithmetic expression `1+1-7`. The expected answer is `-5`. Negative-result CAPTCHAs are an unusual choice for a customer-facing form; for a CTF training app like Juice Shop it is acceptable, but it should not be silently asserted as a defect in another product. The skill's "do not decide product correctness without a stated requirement" rule kicked in: the entry was filed as "Needs Clarification", not as a defect.
+- The Score Board route `#/score-board` is reachable by an anonymous user. In Juice Shop v20 this is intentional and is itself the subject of one of the listed challenges ("Find the carefully hidden 'Score Board' page."). The skill recorded this as project context, not as an access-control bug.
+- The sidenav GitHub link is wrapped in an internal `./redirect?to=https://github.com/...` indirection. This is Juice Shop's known intentional open-redirect surface. The recon report flagged it as a Do-Not-Exercise area and deferred it to a future dedicated session.
+
+The most interesting tooling note was the first one: the recon's very first `browser_navigate` call failed with `Browser is already in use for /Users/nbaynham/Library/Caches/ms-playwright/mcp-chrome-b77170b, use --isolated to run multiple instances of the same browser`. The MCP-managed Chrome from a prior Claude Code session was still alive on `about:blank` and was holding the user-data-dir lock. Recovery was a single `pkill -f "user-data-dir=…mcp-chrome-b77170b"` and the navigate call succeeded on retry. The fix was easy; the value of recording it was that the next operator who hits the same lock has a documented one-line recovery instead of forty-five minutes of guessing.
+
+The recon report ended with six recommended follow-up workflows, ordered by value-for-effort. The user picked the first one.
+
+## Session 2: Anonymous product browsing
+
+The second slash command was `/mcp-exploratory-testing:mcp-exploratory-testing anonymous-product-browsing`. The argument routed the skill into the **Bounded Workflow Exploration** variant. The scope from the recon report carried over: catalog rendering, pagination, items-per-page, product detail view, search, sort/filter probing — anonymous, non-destructive.
+
+The session ran for 23 timeline steps and produced 17 candidate test cases. The findings broke down into three groups: pinned contract behavior, anomalies worth product-owner clarification, and tooling rules.
+
+### Pinned contract behavior
+
+These were uncontroversial and have High-priority test cases attached:
+
+- Catalog default: 15 of 46 products, paginator status `1 – 15 of 46`, Previous disabled on page 1, Next disabled on page 4 (which contains exactly one product — "Woodruff Syrup 'Forest Master X-Treme'").
+- Items-per-page options are exactly `[15, 30, 45, 60]`.
+- Header search routes to `#/search?q=<query>`, displays a heading echoing the query (e.g., `Search Results - apple`), and reuses the same product card layout and paginator.
+- The product detail view is a Material modal (`mat-dialog-container`). The URL does not change when it opens. The dialog exposes the product name in an `<h1>`, a description, a price, an expandable "Reviews (N)" section, and a "Close Dialog" button. There is no Add-to-Basket button inside the dialog.
+
+### Anomalies worth clarification
+
+These were genuine product behaviors that the agent could observe but could not classify as defect-or-feature without a documented requirement. Five of them, each filed as Needs Clarification with a candidate test case that pins the _current_ behavior:
+
+- The header "Close search" button collapses the search input UI but does not clear the active query or change the URL or results. A user clicking the close icon could reasonably expect search to be cleared. Pinned as TC-112.
+- The header brand button "Back to homepage" navigates to `#/search` (no `q`) rather than `#/`. The heading still reads "All Products" and the paginator resets to `1 – 15 of 46`. Pinned as TC-113.
+- Changing items-per-page preserves the leading visible item index rather than the page index. Going from page 3 of size 15 (`31 – 45 of 46`) to size 30 lands on `31 – 46 of 46` (size-30 page 2), not on `1 – 30 of 46`. Defensible UX — keep the user near what they were looking at — but worth confirming. Pinned as TC-106.
+- Header search is substring-matched on product names. Query `apple` returns "Apple Juice (1000ml)", "Apple Pomace", and "Pineapple Juice (1000ml)". Pinned as TC-111.
+- Opening the Apple Juice detail dialog triggered three identical `GET /rest/products/1/reviews` requests in a row. Possibly benign (Angular subscription churn), possibly wasteful. Filed under Defect Investigation, not under "this is a bug".
+
+The pattern matters. The skill does not say "this is broken" — it says "this is what happens, and here is the test case that will catch the day the behavior changes." Whether the behavior should change is a product-owner decision.
+
+### Tooling rules
+
+These are the ones that will save a future automation engineer the most time:
+
+- The Material paginator overlays its controls with a `<div class="mat-mdc-paginator-touch-target">` that intercepts pointer events. `browser_click(<mat-select ref>)` on the items-per-page combobox times out with "intercepts pointer events". The documented workaround is to call `.click()` directly on the touch-target div via `browser_evaluate`, then pick the `mat-option` by id. Both steps are flagged as Tool Workarounds in the timeline and documented in Tooling Notes.
+- The "Click for more information about the product" affordance on each product card is a `<section role="button">`, not an HTML `<button>`. A generic `article button` selector misses it. The page-model design exposes the detail-open target by role or `aria-label`, not by tag.
+- The Previous and Next nav buttons reflect their disabled state via `aria-disabled="true"`, not via the DOM `disabled` property. Automation must assert on `aria-disabled`.
+- Same-route hash navigations preserve catalog state. `browser_navigate("#/")` after being on page 3 leaves the paginator on page 3. Same-base hash navigations (`#/search` from `#/search?q=apple`) do not. Tests asserting on URL alone risk false positives — assert on heading and paginator state, too.
+
+The mat-paginator touch-target issue alone is the kind of small thing that costs an entire afternoon if it is not written down. Codifying it as a "Tool Workaround" entry in the timeline means the next agent down the chain will see it before they propose a brittle locator strategy.
+
+## What the report looks like
+
+Both sessions wrote a single Markdown file each:
+
+```
+sessions/mcp-exploration/juice-shop/
+  app_reconnaissance_session.md            468 lines
+  anonymous-product-browsing_session.md    372 lines
+```
+
+Each file has the same structure. Session metadata, Exploration Scope, Out of Scope, Assumptions, Test Data Used, Pages Observed (one entry per distinct page or modal), a numbered Action Timeline, Observed Outcomes, Anomalies and Risks (with Type / Severity / Status / Recommendation columns), Candidate Test Cases (with observable expected results), Candidate Page Models marked as design observations only, Candidate Data Needs, Open Questions, Tooling Notes, and a Recommended Next Step.
+
+The Action Timeline is the part that pays for itself. Twenty-three rows of "Step | Page | Action | Observed Result | Evidence | Notes" trace every keystroke the agent issued, with snapshot filenames in the Evidence column. The Tool Workaround tag in the Notes column reliably highlights the steps that did not work the first time. Nothing in the report has to be reconstructed from chat scrollback.
+
+## The discipline of not generating BDD
+
+The single most important rule in the exploration skill is the one it never violates:
+
+> Do not generate BDD specs, Gherkin `.feature` files, Playwright code, or PyTest code. Hand off to the `exploratory-to-bdd` skill for BDD generation. Automation code generation is out of scope for v0.1.
+
+This is the rule that makes the pipeline work. If the exploration skill produced BDD on its own, it would do so without traceability, without a quality review of the spec, and without the ability for a human or a different agent to inspect the candidate test cases before the conversion. By stopping at "candidate test case with an observable expected result", the exploration skill produces an artifact that the next skill in the chain can read deterministically.
+
+The recommended next step from the anonymous-product-browsing session is explicit about this:
+
+1. Get product-owner confirmation on the five Needs Clarification anomalies before automating them. Until then, treat the candidate cases as "lock current behavior", not "verify intended behavior".
+2. Hand off the High-priority subset — TC-101, TC-102, TC-103, TC-104, TC-105, TC-107, TC-108, TC-109, TC-110, TC-111 — to the `exploratory-to-bdd` skill.
+3. Plan separate bounded sessions for `add-to-basket-anonymous` and a product-reviews-lifecycle session that reuses the `ProductDetailDialog` page model.
+
+The handoff list is short and concrete because the work upstream was disciplined.
+
+## What this replaces
+
+The traditional version of this work is a tester, a Trello card, and a Slack thread. The tester finds something interesting, screenshots it, writes a sentence, and the sentence gets pasted into a Jira ticket two days later. A week after that, an automation engineer reads the Jira ticket, tries to reproduce the click path, fails because the screenshot was of an outdated dialog, and walks back to the tester to ask what happened.
+
+What replaces it is not "Claude Code does exploratory testing autonomously." Claude Code drives the browser, but the skill is what keeps the artifact reviewable. The structural rules — one observed result per action, application anomalies separate from tooling anomalies, candidate page models marked as design observations only, no BDD generated from this skill — are how a freeform agentic session becomes a thing someone else can use without re-running it.
+
+Two sessions in: 840 lines of Markdown, 29 candidate test cases, 14 classified anomalies, two evidence-anchored Action Timelines, a six-deep follow-up backlog, and one documented one-line recovery for the next time a stale Playwright MCP Chrome holds the user-data-dir lock. The next slash command in the chain is `/exploratory-to-bdd:generate-bdd`, and the input it expects is exactly what is on disk.
