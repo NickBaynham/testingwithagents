@@ -1,0 +1,151 @@
+---
+title: "Experiment 2: Driving a three-stage agentic testing pipeline end-to-end against OWASP Juice Shop"
+slug: "experiment-2-end-to-end-agentic-testing-pipeline"
+excerpt: "Driving the full agentic testing pipeline against OWASP Juice Shop: four MCP exploration sessions feed three BDD spec sets (51 scenarios) feed three Playwright/PyTest automation suites (23 tests, 46s, all passing) feed a 495-line quality report. Covers the discipline boundaries between the three skills, the eleven framework iterations during conversion, the cookie vs localStorage banner fix, the three distinct table-rendering patterns in Juice Shop, the stock-limited test data substitution, and a defect ledger that distinguishes intentional CTF surfaces from things that would actually be defects in a real product."
+publishedAt: "2026-05-26"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+tags:
+  - "agents"
+  - "mcp"
+  - "playwright"
+  - "pytest"
+  - "bdd"
+  - "claude-code"
+  - "owasp-juice-shop"
+  - "skills"
+  - "quality-report"
+---
+
+The first experiment took the Playwright MCP for a walk through OWASP Juice Shop and turned the walk into a Markdown exploration report. The product of that experiment was a reviewable record of what the agent saw. The product was not a test suite. Nothing ran on a schedule. Nothing failed if the application changed.
+
+This second experiment was an attempt to drive the rest of the pipeline. The same exploration reports feed a BDD generator, which feeds a Playwright/PyTest automation generator, which feeds a quality report. Same target (a local Juice Shop v20.0.0 at `http://127.0.0.1:3000`), same agent, same browser. Different output shape: 23 PyTest tests passing in 46 seconds, a 495-line quality report, and a defect ledger that distinguishes intentional CTF training surfaces from things that would actually be defects in a real product.
+
+This post is the walk-through.
+
+## The three plugins
+
+Three Claude Code plugins were installed alongside the Playwright MCP that ships with Claude Code:
+
+- `mcp-exploratory-testing` — drives the live MCP session and writes a structured Markdown exploration report.
+- `exploratory-to-bdd` — reads an exploration report and writes a Markdown BDD spec, a Gherkin `.feature` file, a traceability matrix, an automation candidate review, and a BDD quality review.
+- `agentic-playwright-automation` — reads the BDD spec set and writes Python Playwright/PyTest automation under `automation/`.
+
+After `/plugin` and `/reload-plugins`: 20 plugins, 31 skills, 13 agents, 4 hooks, 4 plugin MCP servers. The three skills are invoked through slash commands like `/mcp-exploratory-testing:mcp-exploratory-testing <workflow>`, `/exploratory-to-bdd:generate-bdd <workflow>`, and `/agentic-playwright-automation:convert-bdd-to-playwright`.
+
+The pipeline they form is the load-bearing idea:
+
+```
+Target URL + workflow scope
+  -> mcp-exploratory-testing       (live Playwright MCP)
+  -> structured exploration session report (Markdown)
+  -> exploratory-to-bdd
+  -> Markdown BDD spec + Gherkin .feature + traceability + automation candidates + BDD quality review
+  -> agentic-playwright-automation
+  -> Python Playwright/PyTest tests under automation/
+  -> quality report
+```
+
+Each stage has explicit inputs, explicit outputs, and an explicit list of things it must not do. The exploration skill never generates Gherkin no matter how obvious the conversion looks. The BDD skill never generates Playwright code. The automation skill never weakens an assertion to make a test pass. The discipline is the product.
+
+## The four MCP exploration sessions
+
+Total exploration: one App Reconnaissance pass plus three Bounded Workflow Explorations. 1,706 lines of structured Markdown.
+
+**App Reconnaissance** (468 lines, anonymous). Six page views: landing/catalog, side navigation, anonymous account menu, login, customer feedback, score board. Twelve candidate test cases, five anomalies, six recommended follow-up workflows. The most informative observations were small:
+
+- The anonymous account menu has exactly one item: "Login". Easy to ship a build where a stale "Logout" entry leaks into anonymous chrome; the test for it costs nothing.
+- The customer feedback CAPTCHA at session time was `1+1-7`. The expected answer is `-5`. Negative-result CAPTCHAs are unusual for a customer-facing form. The skill's "do not decide product correctness without a stated requirement" rule kicked in. Filed as "Needs Clarification", not as a defect.
+- The score board route `#/score-board` is reachable by an anonymous user. In Juice Shop v20 this is intentional — it's itself the subject of one of the listed challenges. Recorded as project context, not as an access-control bug.
+
+**Anonymous product browsing** (372 lines). Twenty-three timeline steps, seventeen candidate test cases. The findings broke down into three groups: pinned contract behavior, anomalies worth product-owner clarification, and tooling rules. The most useful tooling rule: the Material paginator overlays its items-per-page combobox with a `<div class="mat-mdc-paginator-touch-target">` that intercepts pointer events. A bare `browser_click` on the combobox times out with "intercepts pointer events". The documented workaround is to call `.click()` directly on the touch-target div via `browser_evaluate`. That single sentence saved an afternoon of debugging later in the automation stage.
+
+**Login validation** (258 lines). The login form has no client-side email format validation and no password minimum length — both intentional Juice Shop CTF surfaces (the SQL injection challenges depend on the login accepting arbitrary inputs). The real finding was accessibility: invalid form fields carry the Angular `ng-invalid` class but never receive `aria-invalid="true"`. The `mat-error` text is visible to screen readers through `aria-describedby` wiring, but the per-field invalid state is not. The only finding in this session with a real WCAG 2.1 4.1.2 implication.
+
+**Checkout workflow** (508 lines). The session placed one real order on bender's account after explicit in-session authorization. Six page views: basket, address-select, delivery-method, payment, order-summary, order-completion. Eleven anomalies. Two of the most material:
+
+- The two checkout "Continue" buttons have aria-labels that name the _current_ step instead of the destination. The address page button says "Proceed to payment selection" but navigates to delivery. The delivery page button says "Proceed to delivery method selection" but navigates to payment. Screen-reader users are told the wrong destination on every checkout transition.
+- The basket page total renders as `5058.469999999999¤` — a JavaScript floating-point sum that was not rounded for display. The same total renders correctly as `5058.47¤` on every subsequent checkout screen.
+
+The exploration skill stops there. It does not write any test. The test cases are candidate cases, each with an observable expected result and a priority.
+
+## The three BDD spec generations
+
+`/exploratory-to-bdd:generate-bdd <feature>` reads the matching session report and writes five files: a Markdown BDD spec, a Gherkin `.feature` file, a traceability matrix, an automation candidate review, and a BDD quality review.
+
+Across three runs the skill produced 51 scenarios:
+
+- 14 in `login_validation`
+- 17 in `anonymous_product_browsing`
+- 20 in `checkout_workflow`
+
+Each scenario carries a unique ID, tags, an automation priority, a one-line priority rationale, a test data table, and an observed-evidence pointer back to the session report's Action Timeline. The traceability matrix lists every scenario with its source file, source step, and current status (Draft, Ready, Needs Review, Needs Clarification, Potential Defect, Automated, Do Not Automate).
+
+The BDD quality review files end with an Approval Recommendation. All three came back as **Approved with Changes**. The Changes were specific: extract seed-coupled values into a fixture before automating, decide nine open product-level questions, pick an environment-reset strategy for the one test that places a real order. The skill did not approve a spec just because it had been written.
+
+The other discipline the skill enforces: every observation that needs a product-owner decision is tagged `@needs-clarification` and surfaced as an Open Question, not silently resolved. Across the three specs there are nine open questions (Q1–Q9). Until they land, 14 scenarios stay in a "lock current behavior" lane — automated against what the app does today, with the understanding that a product-owner decision to change the behavior will flip the assertion rather than indicate a regression.
+
+The skill does not generate Playwright code. The Markdown spec is the contract; the `.feature` file is the spec in Gherkin; the next skill is the one that decides how to test it.
+
+## The three automation conversions
+
+`/agentic-playwright-automation:convert-bdd-to-playwright` reads the BDD spec set and the automation candidate review, then writes tests under `automation/tests/ui/juice_shop/`, page objects under `automation/framework/pages/juice_shop/`, components under `automation/framework/components/juice_shop/`, data models under `automation/framework/models/`, test data under `automation/test_data/juice_shop_local/`, and fixtures in `automation/tests/conftest.py`. The skill implements only scenarios that are all of: High priority, `@automatable`, NOT `@needs-clarification`, NOT `Do Not Automate`.
+
+Across three runs the skill produced **23 PyTest tests passing in 46.01 seconds** against the live local instance. Nine page objects, one component (`HeaderSearch`), one model (`LoginCredential`), three test-data YAML files.
+
+The framework already existed under `automation/` from a prior project (SauceDemo, with `LoginPage`, `InventoryPage`, `CartPage`, etc.). The Juice Shop layer was added alongside it without touching the existing SauceDemo artifacts. A new environment `juice_shop_local` lives in `environments.yaml` and the Juice Shop fixtures load it explicitly via `load_settings("juice_shop_local")` independent of `APP_ENV`. The two app suites run from the same command without env juggling.
+
+## What failed first
+
+The conversion would have looked clean if every locator hit on the first try. None of them did. Eleven framework or locator or test-data iterations happened across the three conversions. They are the most useful artifact of the experiment because they are the things a future automator will hit on the same app.
+
+A representative subset:
+
+**Welcome banner blocks every click.** Juice Shop renders a "Welcome to OWASP Juice Shop!" modal and a cookie-consent banner on first visit. The MCP exploration sessions never hit this because the MCP browser had cached dismissals across runs. The pytest-playwright contexts are ephemeral and re-display the banners every test. The first guess at a fix was a `localStorage` init script; that had no effect because Juice Shop reads the dismissals from **cookies**, not localStorage. The correct fix is `page.context.add_cookies([{"name": "welcomebanner_status", "value": "dismiss", "url": base_url}, {"name": "cookieconsent_status", "value": "dismiss", "url": base_url}])` in the Juice Shop page fixture. The helper `_seed_juice_shop_dismiss_cookies(page, base_url)` is shared across every Juice Shop page fixture.
+
+**Two distinct error surfaces.** The login form has `mat-error` for the blur-required field validators and `div.error` for the post-401 server rejection. The MCP session report claimed both rendered as `mat-error` because the session's `document.querySelectorAll('mat-error, .mat-error')` returned multiple elements and they got conflated. The automation needs both: a `mat_errors` locator and a separate `server_error_banner` locator on `LoginPage`. The implementation report corrects the spec's observation.
+
+**Three distinct table-rendering patterns.** Juice Shop uses Angular Material's `mat-table` web component on the basket / address / delivery / payment screens (rendering to `mat-row`, not `tr`). It uses a real HTML `table.mat-table` with `tr.mat-row` on the order summary review screen. And it uses nested `mat-card` containers on the order summary where both the outer wrapper and the inner panel each contain the text being filtered on, requiring `has_text` + `has_not_text` to disambiguate. None of this is in the spec; all of it is in the page object and is documented in the per-suite implementation reports.
+
+**The Salesman Artwork problem.** The checkout spec asserts bender's basket holds four specific items, including "Best Juice Shop Salesman Artwork" (product id 42, total `5058.47¤`). That product has a stock count of 1. The MCP checkout exploration session — earlier in the same conversation — placed an order that consumed the single unit. After that, the basket-reseed API rejected every attempt to add product 42 with `{"error":"We are out of stock! Sorry for the inconvenience."}`. The fix was to substitute Apple Juice (id 1, always in stock) and recompute the total to `60.46¤`. The substitution is documented in `automation/test_data/juice_shop_local/checkout.yaml`. The proper long-term fix is to restart Juice Shop to re-seed the DB.
+
+**The API-based basket reseed.** Each pytest session needs bender's basket in a known state before the tests run. The combined `test_cw_312_313_314_place_order_and_completion_state` test mutates state by placing an order; subsequent tests in the same session would see an empty basket. The fix is a session-scoped `juice_shop_bender_basket_reseeded` fixture that uses Python's stdlib `urllib.request` to log in via `/rest/user/login`, DELETE existing basket items via `/api/BasketItems/<id>`, and POST the four expected items via `/api/BasketItems`. The fixture runs once per pytest session. The suite is self-sufficient across repeated runs.
+
+All eleven iterations were resolved at the framework, locator, or test-data layer. **No test was made to pass by weakening an assertion.** The skill's failure-classification rule (Product Defect, Test Data Issue, Locator Issue, Environment Issue, Timing/Flakiness, Framework Issue, Tooling Issue, Ambiguous Requirement) is the reason this discipline survives intact.
+
+## The combined-test compromise
+
+CW-312 (POST /rest/basket/N/checkout returns 200 + URL becomes /order-completion/...), CW-313 (post-order basket badge reads "0"), and CW-314 (Track Orders link with matching id) are three BDD scenarios that all observe the same post-place-order state. Splitting them into three pytest tests would either (a) place three real orders per run, accumulating state, or (b) require sharing the server-generated order ID across function-scoped pytest contexts, which is fragile.
+
+The compromise was to combine the three scenarios into a single test function named for all three scenario IDs. The docstring lists CW-312, CW-313, and CW-314 explicitly; each assertion block is labelled. The skill rule that says "one behavior per test" is read here as one _state transition_, not one assertion. The implementation report documents the rationale so a future reader does not flag this as a violation.
+
+The implementation report is the place this kind of decision should live. The point of the report is that the test file itself does not need to defend itself; the report does.
+
+## The quality report
+
+After three automation conversions the next slash command is not another `/convert-bdd-to-playwright`. It is a request for a quality report. The report at `quality/quality-report.md` synthesizes everything: scope, risk analysis, test plan, test cases, defects found, test results, recommendations. 495 lines.
+
+The single most important thing the report does is **distinguish intentional Juice Shop CTF training surfaces from real-product defects**. Six findings are intentional: the open redirect via `/redirect?to=`, the IDOR via order id in the URL, the missing email format validation, the missing password minimum length, the anonymous Score Board reachability, the persistent CTF challenge banner. All would be Critical or High in a real product. None should be fixed in this product. The report says so plainly and tells future readers not to export these scenarios to non-CTF products.
+
+That leaves three Medium-severity findings that would matter in a real e-commerce app, all of them accessibility:
+
+- Missing `aria-invalid` on invalid login form fields (L-03).
+- Two checkout Continue buttons with aria-labels that name the wrong step (C-02, two instances).
+- Collapsed payment expander leaking 32 form options into the accessibility tree (C-10).
+
+Plus a cluster of Low-severity display and performance findings: basket page floating-point total leak, mixed decimal precision on the order completion line, stray quote in the payment summary text, redundant `/rest/user/whoami` calls during checkout, triple-fetch on product reviews when opening a detail dialog. None blocks Juice Shop's training use. All have specific scenario IDs and open questions tied to them so the next product-owner decision cycle can resolve them as a batch.
+
+The recommendations section is eighteen items split across: Juice Shop fixes (decide the accessibility cluster first; introduce a project-wide currency formatter; restart and re-seed), testing pipeline expansion (add an `@needs-clarification` automation lane; add an axe-style accessibility sweep; visual regression on basket and completion screens; expand the bounded-session backlog), automation framework improvements (JWT injection optimization for ~25% runtime reduction; cross-browser run; CI scaffolding), and product iteration guidance (walk the BDD quality review revisions list with the product owner; consider a `claude-automation-recommender` pass if the pipeline scales).
+
+## What this experiment actually proved
+
+Two things.
+
+**First**, the discipline boundaries between the three skills are the reason the output is reviewable. The exploration skill does not write BDD. The BDD skill does not write code. The automation skill does not weaken assertions. None of these is a technical limitation — there is no reason an LLM could not do all three steps in one prompt. The fact that the skills enforce the boundaries is what makes the artifacts inspectable. The exploration report could be wrong about the `mat-error` vs `div.error` distinction, and the automation report could correct it without rewriting the spec. The BDD spec could lock current behavior on a question that the product owner later flips, and the automation could move that test into a separate lane without touching the spec. The pipeline survives small errors because each stage's output is the contract for the next stage, and no stage assumes the previous one was correct.
+
+**Second**, the agentic pipeline is at its most useful when it surfaces the things a human would have to think about. Eleven framework iterations during the automation conversion. Nine open product-level questions. Three real accessibility findings that any e-commerce site would have to address. One test data substitution because of a stock-limited product on a shared instance. A combined-test compromise for three scenarios that share a state transition. The pipeline did not solve any of these. The pipeline made each one visible, named it, and put it somewhere a human can act on it.
+
+23 PyTest tests passing in 46 seconds against a live OWASP Juice Shop is a satisfying number. The artifact that actually moves the work forward is the 495-line quality report that explains why none of the failures that were caught actually matter to this app, and which six items would matter if you took this same UI and tried to ship it as a real e-commerce platform tomorrow.
+
+The next slash commands in the chain are not more automation. They are nine product-owner decisions and three accessibility fixes. The pipeline has done its job when it can hand those over in that shape.

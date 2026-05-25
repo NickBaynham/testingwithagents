@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-test("blog index lists all nine posts newest first", async ({ page }) => {
+test("blog index lists all ten posts newest first", async ({ page }) => {
   await page.goto("/blog/");
   await expect(page.getByRole("heading", { level: 1, name: /notes on testing/i })).toBeVisible();
 
   const titles = await page.getByRole("heading", { level: 2 }).allTextContents();
-  expect(titles[0]).toMatch(/skill-driven exploratory testing of OWASP Juice Shop/i);
-  expect(titles).toHaveLength(9);
+  expect(titles[0]).toMatch(/Experiment 2: Driving a three-stage agentic testing pipeline/i);
+  expect(titles).toHaveLength(10);
 });
 
 test("category filter narrows the post list", async ({ page }) => {
@@ -46,7 +46,7 @@ test("home renders the three most recent posts in Latest writing", async ({ page
   });
   const titles = await section.getByRole("heading", { level: 3 }).allTextContents();
   expect(titles).toHaveLength(3);
-  expect(titles[0]).toMatch(/skill-driven exploratory testing of OWASP Juice Shop/i);
+  expect(titles[0]).toMatch(/Experiment 2: Driving a three-stage agentic testing pipeline/i);
 });
 
 test("rss.xml is served with all post URLs", async ({ page }) => {
@@ -55,6 +55,7 @@ test("rss.xml is served with all post URLs", async ({ page }) => {
   const body = await response.text();
   expect(body).toContain("<rss");
   for (const slug of [
+    "experiment-2-end-to-end-agentic-testing-pipeline",
     "skill-driven-exploratory-testing-juice-shop",
     "from-exploration-to-automation-agentic-testing-workflow",
     "exploratory-testing-with-claude-code-and-playwright-mcp",
@@ -74,8 +75,8 @@ test("feed.json validates as JSON Feed 1.1 and lists the posts", async ({ page }
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(body.version).toBe("https://jsonfeed.org/version/1.1");
-  expect(body.items).toHaveLength(9);
-  expect(body.items[0].url).toContain("/blog/skill-driven-exploratory-testing-juice-shop/");
+  expect(body.items).toHaveLength(10);
+  expect(body.items[0].url).toContain("/blog/experiment-2-end-to-end-agentic-testing-pipeline/");
 });
 
 test("sitemap.xml includes every blog post route", async ({ page }) => {
@@ -83,6 +84,7 @@ test("sitemap.xml includes every blog post route", async ({ page }) => {
   expect(response.status()).toBe(200);
   const body = await response.text();
   for (const slug of [
+    "experiment-2-end-to-end-agentic-testing-pipeline",
     "skill-driven-exploratory-testing-juice-shop",
     "from-exploration-to-automation-agentic-testing-workflow",
     "exploratory-testing-with-claude-code-and-playwright-mcp",
@@ -106,6 +108,7 @@ test("footer RSS link is present and points at /rss.xml", async ({ page }) => {
 });
 
 const POST_SLUGS = [
+  "experiment-2-end-to-end-agentic-testing-pipeline",
   "skill-driven-exploratory-testing-juice-shop",
   "from-exploration-to-automation-agentic-testing-workflow",
   "exploratory-testing-with-claude-code-and-playwright-mcp",
