@@ -15,7 +15,7 @@ export const dynamic = "force-static";
 const staticRoutes = [
   "/",
   "/about",
-  "/resume",
+  "/test-commander",
   "/contact",
   "/projects",
   "/blog",

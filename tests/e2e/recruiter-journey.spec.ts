@@ -1,34 +1,17 @@
 import { test, expect } from "@playwright/test";
 
-test("recruiter journey: home -> resume -> contact -> LinkedIn link", async ({ page }) => {
+test("recruiter journey: home -> contact -> LinkedIn link", async ({ page }) => {
   // 1. Land on Home, see hero + tagline + primary CTA.
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: /Nick Baynham/i })).toBeVisible();
   await expect(page.getByText(/Software testing for the agentic era/i).first()).toBeVisible();
 
-  // 2. Use the Resume nav link to land on /resume/ (the "Download Resume"
-  // hero CTA now points at /resume.pdf and triggers a download instead of
-  // a navigation).
-  await page.getByRole("banner").getByRole("link", { name: "Resume" }).click();
-  await expect(page).toHaveURL(/\/resume\/$/);
-  await expect(page.getByRole("heading", { level: 1, name: /Nick Baynham/i })).toBeVisible();
-
-  // The Resume page surfaces the Download PDF link.
-  await expect(page.getByRole("link", { name: "Download PDF" })).toHaveAttribute(
-    "href",
-    "/resume.pdf",
-  );
-
-  // 3. Resume page surfaces the recruiter summary and contact button.
-  await expect(page.getByRole("complementary", { name: /recruiter summary/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Contact me" })).toBeVisible();
-
-  // 4. Click Contact, land on /contact/.
-  await page.getByRole("link", { name: "Contact me" }).click();
+  // 2. Click Contact, land on /contact/.
+  await page.getByRole("banner").getByRole("link", { name: "Contact" }).click();
   await expect(page).toHaveURL(/\/contact\/$/);
   await expect(page.getByRole("heading", { level: 1, name: /Let.+talk/i })).toBeVisible();
 
-  // 5. LinkedIn link is reachable from Contact (and footer).
+  // 3. LinkedIn link is reachable from Contact (and footer).
   const linkedinLinks = page.getByRole("link", { name: "LinkedIn" });
   await expect(linkedinLinks.first()).toBeVisible();
   await expect(linkedinLinks.first()).toHaveAttribute("href", /linkedin\.com\/in\/nickbaynham/);
@@ -39,7 +22,7 @@ test("sitemap.xml is served with all primary routes", async ({ page }) => {
   expect(response.status()).toBe(200);
   const body = await response.text();
   expect(body).toContain("<urlset");
-  for (const path of ["/", "/about", "/resume", "/contact"]) {
+  for (const path of ["/", "/about", "/test-commander", "/contact"]) {
     const url = new RegExp(`<loc>https://[^<]+${path === "/" ? "/?</loc>" : path + "/?</loc>"}`);
     expect(body).toMatch(url);
   }

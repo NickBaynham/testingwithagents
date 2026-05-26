@@ -19,35 +19,36 @@ Current shipped capabilities of testingwithagents.com.
 
 - Design-token system in `app/globals.css`: slate palette + deep-cyan accent, light / dark themes driven by a `data-theme` attribute, no-FOUC bootstrap script set before paint, `prefers-color-scheme` fallback when JS is disabled. All text/surface combinations meet WCAG AA contrast.
 - Global layout shell: sticky `<Nav>` (active-route detection), `<SkipLink>`, `<Footer>` with social links, `<ThemeToggle>` using `useSyncExternalStore`. Site-wide content lives in `lib/site-config.ts`.
-- Home page (`/`) with real hero, positioning paragraph, four primary CTAs (Portfolio, Blog, Resume PDF, Contact), and bordered section blocks for Featured projects / Latest writing / Skills snapshot.
+- Home page (`/`) with real hero, positioning paragraph, three primary CTAs (Portfolio, Blog, Contact), and bordered section blocks for Featured projects / Latest writing / Skills snapshot.
 - Custom 404 page (`app/not-found.tsx`).
 - `docs/MAINTENANCE.md` - site-maintenance handbook with quick-reference table, theming guide, and component catalog; updated alongside every Phase 1 component.
 
-### Commit B - About, Resume, Contact, MDX, RecruiterSummary
+### Commit B - About, Contact, MDX, RecruiterSummary
 
 - MDX wired via `@next/mdx` + `mdx-components.tsx` + `pageExtensions`. Tailwind v4 typography plugin loaded via `@plugin` in `app/globals.css` (closes the Phase 0 deferral).
-- `content/recruiter-summary.mdx` and `content/resume/resume.mdx` are now the single sources for the recruiter-summary block and resume body.
-- `<RecruiterSummary>` component mounts on Home, About, and Resume; reads from a single MDX file so a single edit updates every page.
+- `content/recruiter-summary.mdx` is the single source for the recruiter-summary block.
+- `<RecruiterSummary>` component mounts on Home and About; reads from a single MDX file so a single edit updates every page.
 - `/about` page with Professional summary, Testing philosophy, Why AI + QA matters, What I'm building toward, and Current focus areas sections.
-- `/resume` page renders the MDX resume with Contact / LinkedIn / GitHub CTAs and the recruiter-summary block.
-- `/contact` page with email, LinkedIn, and GitHub channel cards (no form, scheduling link planned for Phase 6).
-- Home page CTAs updated: "View Resume" points to `/resume/` while the PDF generation is still in Phase 4.
-- Test coverage: navigate-from-nav e2e specs for the three new pages, axe scans on each, RecruiterSummary unit test, and a vitest MDX stub alias so unit tests work without running the @next/mdx webpack loader.
+- `/contact` page with LinkedIn and GitHub channel cards (no form, scheduling link planned for Phase 6).
+- Test coverage: navigate-from-nav e2e specs for the new pages, axe scans on each, RecruiterSummary unit test, and a vitest MDX stub alias so unit tests work without running the @next/mdx webpack loader.
 
 ### Commit C - SEO baseline + recruiter-journey
 
-- Global title template, description, canonical, Open Graph (`type: website`, site name, title, description, url, locale), and Twitter card (`summary_large_image`) wired in `app/layout.tsx`. Per-route overrides on Home, About, Resume, Contact.
+- Global title template, description, canonical, Open Graph (`type: website`, site name, title, description, url, locale), and Twitter card (`summary_large_image`) wired in `app/layout.tsx`. Per-route overrides on Home, About, Contact.
 - Static `/sitemap.xml` and `/robots.txt` emitted at build time from `app/sitemap.ts` and `app/robots.ts`.
-- Recruiter-journey Playwright spec covers Home -> Resume -> Contact -> LinkedIn, plus sitemap.xml / robots.txt / canonical-and-OG meta-tag verification.
+- Recruiter-journey Playwright spec covers Home -> Contact -> LinkedIn, plus sitemap.xml / robots.txt / canonical-and-OG meta-tag verification.
 
 Phase 1 MVP skeleton (Commits A + B + C) complete. Recruiter, hiring-manager, and peer journeys land on real pages with consistent identity, navigation, theming, accessibility, and discoverability.
 
-## Phase 4 (SEO + OG + security + resume PDF)
+## Test Commander flagship page
+
+- **`/test-commander`** — single-page showcase of the Test Commander concept. Asymmetric hero with a terminal preview and the safety-positioning tagline ("Autonomous where safe. Human-governed where it matters."), value-prop strip, full seven-step workflow loop with per-step descriptions, Phase I scope, three terminal-styled artifact previews, make-command reference, five-audience card grid, design principles, five-phase capability roadmap, nine-stage team-adoption maturity model (Implementation roadmap), six-card Autonomy Levels matrix with Level 3 (Pull Request Automation) flagged as the recommended default, Continuous Quality Agent Mode vision (continuous-loop diagram + sample PR-comment artifact), contact CTA. Top-level nav entry between About and Projects. Build-time OG image at `/og/test-commander.png`. JSON-LD `CreativeWork` + `BreadcrumbList`. All three themes pass WCAG AA.
+
+## Phase 4 (SEO + OG + security)
 
 - **JSON-LD structured data** on every detail route: Person on Home + About, BreadcrumbList on detail pages, BlogPosting on posts, CreativeWork on projects.
 - **Per-route Open Graph images** generated at build time as 1200x630 PNGs under `public/og/` (default + one per project + one per post). Each page references its image with an explicit `.png` URL.
 - **Security headers** applied to every response by Amplify Hosting: HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options, Cross-Origin-Opener-Policy. (CSP deferred - see `docs/MAINTENANCE.md` troubleshooting note.)
-- **Resume PDF** generated at build time from the canonical `content/resume/resume.mdx` via Playwright headless print. Home CTA and `/resume` page link to `/resume.pdf`.
 
 ## Phase 2 (in progress)
 

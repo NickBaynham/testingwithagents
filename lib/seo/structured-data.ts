@@ -19,7 +19,6 @@ export function personJsonLd(): JsonLdObject {
     "@type": "Person",
     name: site.name,
     url: site.url,
-    email: `mailto:${site.contactEmail}`,
     sameAs: [site.social.linkedin, site.social.github],
     description:
       "Software testing and automation engineer focused on AI-augmented quality engineering.",

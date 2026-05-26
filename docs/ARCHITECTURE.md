@@ -7,7 +7,7 @@ This document captures the runtime and build-time architecture of testingwithage
 - Next.js 16 (App Router, static export) on Node 24.
 - TypeScript with `strict` enabled.
 - Tailwind CSS v4.
-- MDX for project case studies, blog posts, and resume content.
+- MDX for project case studies and blog posts.
 - Vitest + React Testing Library for unit and component tests.
 - Playwright + axe-core for end-to-end, accessibility, and visual tests.
 
@@ -36,9 +36,9 @@ App Router under `app/`. The root layout (`app/layout.tsx`) wraps every route wi
 4. `<main id="main">` containing the route subtree.
 5. `<Footer>` (server component).
 
-Routes implemented in Phase 1 Commit A: `/` and `not-found`. Sibling pages (`/about`, `/resume`, `/contact`) land in Commit B; SEO primitives (`sitemap.ts`, `robots.ts`, per-route `generateMetadata`) in Commit C.
+Routes implemented in Phase 1 Commit A: `/` and `not-found`. Sibling pages (`/about`, `/contact`) land in Commit B; SEO primitives (`sitemap.ts`, `robots.ts`, per-route `generateMetadata`) in Commit C.
 
-Site-wide content (name, role, tagline, email, social links, primary nav) lives in `lib/site-config.ts` so a single edit propagates everywhere.
+Site-wide content (name, role, tagline, social links, primary nav) lives in `lib/site-config.ts` so a single edit propagates everywhere.
 
 ## Design Tokens
 
@@ -86,7 +86,3 @@ Static export has no Next runtime to set headers via `next.config.ts`. Headers a
 - `Cross-Origin-Opener-Policy: same-origin`
 
 `Content-Security-Policy` is intentionally absent for now: a nonce-based CSP requires a runtime (incompatible with `output: "export"`), and a hash-based CSP would need the `themeBootstrap` script's SHA-256 regenerated on every edit. Adding CSP with an automated hash-pinning step is a Phase 4 follow-up; until then we ship the rest of the security baseline. Documented in `plan/plan.md` Phase 4 task 8.
-
-### Resume PDF generation (Phase 4)
-
-`scripts/generate-resume-pdf.tsx` runs as a `postbuild` step. It starts `serve out` on an ephemeral port, navigates Playwright (headless Chromium) to `/resume/` with `data-theme="light"` forced via `addInitScript`, emulates print media, and writes a Letter-format PDF to `out/resume.pdf`. The PDF is a build artifact - not committed to git - so every deploy regenerates it from the canonical `content/resume/resume.mdx` source. Local Playwright tests pick up the PDF because they serve `out/`.

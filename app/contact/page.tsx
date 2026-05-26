@@ -10,16 +10,10 @@ export const metadata: Metadata = {
 
 const channels = [
   {
-    label: "Email",
-    detail: site.contactEmail,
-    href: `mailto:${site.contactEmail}`,
-    note: "Best for role inquiries, freelance, or speaking. Response within a few business days.",
-  },
-  {
     label: "LinkedIn",
     detail: "linkedin.com/in/nickbaynham",
     href: site.social.linkedin,
-    note: "DMs welcome from recruiters and hiring managers. Please mention the role.",
+    note: "Best for role inquiries, freelance, or speaking. DMs welcome from recruiters and hiring managers - please mention the role.",
   },
   {
     label: "GitHub",
@@ -39,15 +33,9 @@ export default function ContactPage() {
         Let&rsquo;s talk.
       </h1>
       <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--color-text-muted)]">
-        The fastest way to reach me is email or LinkedIn. I prioritize messages from recruiters and
-        hiring managers working on roles that match what&rsquo;s on the{" "}
-        <a
-          href="/resume"
-          className="text-[var(--color-accent)] underline underline-offset-4 hover:text-[var(--color-accent-hover)]"
-        >
-          resume page
-        </a>
-        .
+        The fastest way to reach me is LinkedIn. I prioritize messages from recruiters and hiring
+        managers working on Senior QA Automation, SDET, AI-Augmented QA, Test Automation Architect,
+        and Quality Engineering roles.
       </p>
 
       <ul className="mt-10 space-y-6">
@@ -75,7 +63,7 @@ export default function ContactPage() {
 
       <p className="mt-10 text-sm text-[var(--color-text-subtle)]">
         A scheduling link is planned for Phase 6. Until then, please propose a couple of times by
-        email and I&rsquo;ll confirm.
+        LinkedIn DM and I&rsquo;ll confirm.
       </p>
     </div>
   );

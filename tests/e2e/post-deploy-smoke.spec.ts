@@ -77,15 +77,6 @@ test.describe("post-deploy smoke", () => {
     expect(response.headers()["content-type"]).toContain("image/png");
   });
 
-  test("/resume.pdf serves with application/pdf content-type", async ({ request }) => {
-    const response = await request.get(`${target}/resume.pdf`);
-    expect(response.status()).toBe(200);
-    expect(response.headers()["content-type"]).toMatch(/application\/pdf/);
-    const buf = await response.body();
-    expect(buf.slice(0, 5).toString()).toBe("%PDF-");
-    expect(buf.byteLength).toBeGreaterThan(50_000);
-  });
-
   test("sitemap.xml lists every primary route", async ({ request }) => {
     const response = await request.get(`${target}/sitemap.xml`);
     expect(response.status()).toBe(200);
@@ -93,7 +84,7 @@ test.describe("post-deploy smoke", () => {
     for (const path of [
       "/",
       "/about",
-      "/resume",
+      "/test-commander",
       "/contact",
       "/projects",
       "/blog",

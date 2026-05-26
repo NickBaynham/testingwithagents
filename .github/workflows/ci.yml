@@ -58,12 +58,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      # postbuild (scripts/generate-resume-pdf.tsx) renders /resume to PDF
-      # via Playwright headless Chromium. Playwright 1.49+ launches the
-      # `chromium-headless-shell` binary by default, which is shipped as a
-      # separate package from `chromium`. Install both so postbuild's
-      # `chromium.launch()` finds its executable.
-      - run: npx playwright install chromium chromium-headless-shell
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:

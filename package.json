@@ -5,10 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build:og": "tsx scripts/generate-og-images.tsx",
-    "build:resume-pdf": "tsx scripts/generate-resume-pdf.tsx",
     "prebuild": "npm run build:og",
     "build": "next build",
-    "postbuild": "npm run build:resume-pdf",
     "start": "serve out -l tcp://0.0.0.0:3000 --no-clipboard",
     "lint": "eslint",
     "lint:md": "markdownlint-cli2",

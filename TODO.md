@@ -14,7 +14,7 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 - Transitive `postcss <8.5.10` advisory (XSS in CSS stringify output) inside `node_modules/next/node_modules/postcss`. Only exploitable if untrusted CSS is generated server-side; for an authored static portfolio the risk is low. Wait for a Next.js 16 patch that bumps the bundled postcss; do not `npm audit fix --force` (it downgrades Next to 9.x).
 - Visual regression baselines: deferred to Phase 2 (first appears on `/projects`).
 - AWS OIDC role + `AWS_DEPLOY_ROLE_ARN` / `AMPLIFY_APP_ID` GitHub secrets must be configured before the `deploy` job in `.github/workflows/ci.yml` can succeed on `main` pushes. See `docs/DEPLOYMENT.md` "Continuous Deployment (GitHub Actions)" for the setup.
-- `lychee.toml` excludes placeholder routes (`/about`, `/blog`, `/contact`, `/projects`, `/resume`, `/resume.pdf`) until each phase ships the destination. Remove each exclude line when its phase lands (annotated inline in `lychee.toml`).
+- `lychee.toml` excludes placeholder routes (`/about`, `/blog`, `/contact`, `/projects`) until each phase ships the destination. Remove each exclude line when its phase lands (annotated inline in `lychee.toml`).
 
 ## Phase 1 (MVP Skeleton)
 
@@ -28,26 +28,26 @@ Work not yet started or in progress. See `plan/plan.md` for full phase context.
 
 ### Commit B (done)
 
-- [x] About, Resume, Contact pages.
+- [x] About, Contact pages.
 - [x] MDX wiring (`@next/mdx`, `mdx-components.tsx`, `pageExtensions`).
 - [x] `@tailwindcss/typography` v4 pin via `@plugin` in `app/globals.css`.
-- [x] `content/resume/resume.mdx` + `content/recruiter-summary.mdx`.
-- [x] `<RecruiterSummary>` block on Home, About, Resume.
-- [x] `docs/MAINTENANCE.md` catalog entries for `<RecruiterSummary>` and the three new pages.
-- [x] Removed `/about`, `/resume`, `/contact` from `lychee.toml` exclude list (routes now exist).
+- [x] `content/recruiter-summary.mdx`.
+- [x] `<RecruiterSummary>` block on Home and About.
+- [x] `docs/MAINTENANCE.md` catalog entries for `<RecruiterSummary>` and the new pages.
+- [x] Removed `/about`, `/contact` from `lychee.toml` exclude list (routes now exist).
 
 ### Commit C (done)
 
 - [x] SEO baseline (per-route `generateMetadata`, canonical, OG defaults, `app/sitemap.ts`, `app/robots.ts`).
-- [x] Recruiter-journey Playwright E2E (Home -> Resume -> Contact -> LinkedIn). The `/resume.pdf` step waits for the Phase 4 PDF generator.
-- [x] axe scans on About, Resume, Contact.
+- [x] Recruiter-journey Playwright E2E (Home -> Contact -> LinkedIn).
+- [x] axe scans on About, Contact.
 - [x] `docs/MAINTENANCE.md` SEO section + final catalog reconciliation.
 
-Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes except `/projects` (Phase 2) and `/blog` (Phase 3) are live with real content.
+Phase 1 MVP skeleton (Commits A + B + C) complete. All primary nav routes except `/projects` (Phase 2) and `/blog` (Phase 3) are live with real content.
 
 ## Phase 2 (in progress)
 
-- [x] Theme system upgrade: default to slate-light regardless of `prefers-color-scheme`, keep slate-dark as opt-in, add warm theme (white + amber-700). `<ThemeToggle>` is now a three-option radiogroup. Axe scans run per-theme on Home, About, Resume, Contact.
+- [x] Theme system upgrade: default to slate-light regardless of `prefers-color-scheme`, keep slate-dark as opt-in, add warm theme (white + amber-700). `<ThemeToggle>` is now a three-option radiogroup. Axe scans run per-theme on Home, About, Contact.
 - [x] `content/projects/*.mdx` with Zod-validated frontmatter (`lib/content/projects.ts`).
 - [x] `/projects` index with Category + Technology filter rows. Filter state in URL, progressively enhanced.
 - [x] `/projects/[slug]` case-study route with the 11-section template.
@@ -77,7 +77,6 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes e
 - [x] Structured data (JSON-LD): `Person`, `BlogPosting`, `CreativeWork`, `BreadcrumbList`.
 - [x] Per-route Open Graph images via build-time PNG script (corrected fix for the Phase 2 rollback).
 - [x] Security headers via `amplify.yml customHeaders`: HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options, COOP.
-- [x] Build-time resume PDF from `content/resume/resume.mdx` via Playwright headless print.
 
 ### Phase 4 deviations carried as follow-ups
 
@@ -98,3 +97,8 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All five primary nav routes e
 ### Phase 5 remaining manual step
 
 - [ ] In GitHub repo Settings -> Secrets and variables -> Actions -> Variables, set `AMPLIFY_LIVE_URL=https://testingwithagents.com`. The `post-deploy-smoke` job currently defaults to the preview Amplify URL; flipping this variable points it at the canonical host.
+
+## Phase 6 (post-launch enhancements)
+
+- [x] Test Commander flagship page at `/test-commander` (top-level nav entry, OG image, JSON-LD, focused Playwright + a11y coverage on all three themes).
+- [x] Test Commander expansion: Implementation roadmap (9-stage adoption maturity), Autonomy levels (Level 0-5 with Level 3 as recommended default), Continuous Quality Agent Mode vision (continuous loop + PR-comment artifact); hero gains the safety-positioning tagline; existing Roadmap renamed to "Capability roadmap" to distinguish from team-adoption maturity model.

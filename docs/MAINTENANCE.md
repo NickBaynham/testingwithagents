@@ -1,18 +1,18 @@
 # Site Maintenance Handbook
 
-How to change things on testingwithagents.com without re-deriving the architecture from the source. Pair this with [`ARCHITECTURE.md`](ARCHITECTURE.md) (system structure) and [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) (how to add projects, posts, resume MDX).
+How to change things on testingwithagents.com without re-deriving the architecture from the source. Pair this with [`ARCHITECTURE.md`](ARCHITECTURE.md) (system structure) and [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) (how to add projects and posts).
 
 ## If you only change one thing today
 
 | You want to change... | File to edit | Section below |
 | --- | --- | --- |
-| Site name, role, tagline, email, social links | `lib/site-config.ts` | [Common content edits](#common-content-edits) |
+| Site name, role, tagline, social links | `lib/site-config.ts` | [Common content edits](#common-content-edits) |
 | Primary nav links | `lib/site-config.ts` (`primaryNav`) | [Common content edits](#common-content-edits) |
 | Home hero copy or CTAs | `app/page.tsx` | [Common content edits](#common-content-edits) |
 | About page sections | `app/about/page.tsx` | [Common content edits](#common-content-edits) |
-| Resume page body | `content/resume/resume.mdx` | [Common content edits](#common-content-edits) and [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) |
-| Recruiter summary text (Home, About, Resume, Projects) | `content/recruiter-summary.mdx` | [Common content edits](#common-content-edits) |
-| Contact channels (email, LinkedIn, GitHub) | `lib/site-config.ts` + `app/contact/page.tsx` for notes | [Common content edits](#common-content-edits) |
+| Test Commander copy (workflow steps, audiences, roadmap) | `app/test-commander/page.tsx` (typed arrays at top of file) | [Component catalog](#component-catalog) |
+| Recruiter summary text (Home, About, Projects) | `content/recruiter-summary.mdx` | [Common content edits](#common-content-edits) |
+| Contact channels (LinkedIn, GitHub) | `lib/site-config.ts` + `app/contact/page.tsx` for notes | [Common content edits](#common-content-edits) |
 | 404 page copy | `app/not-found.tsx` | [Common content edits](#common-content-edits) |
 | Add or edit a project case study | `content/projects/<slug>.mdx` | [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) "Authoring a Project" |
 | Mark a project as featured on Home | `content/projects/<slug>.mdx` frontmatter (`featured: true`) | [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) "Authoring a Project" |
@@ -27,14 +27,14 @@ How to change things on testingwithagents.com without re-deriving the architectu
 
 Most user-facing copy lives in two places:
 
-1. **`lib/site-config.ts`** - the single source of truth for things repeated across the site: site name, role, tagline, email, LinkedIn, GitHub, and the primary nav array. Components import from here; never copy these values into a component.
-2. **The page that owns the copy** - the hero paragraph and CTA labels are in `app/page.tsx`; the 404 message is in `app/not-found.tsx`; About / Resume / Contact will follow in Commit B with similar shapes.
+1. **`lib/site-config.ts`** - the single source of truth for things repeated across the site: site name, role, tagline, LinkedIn, GitHub, and the primary nav array. Components import from here; never copy these values into a component.
+2. **The page that owns the copy** - the hero paragraph and CTA labels are in `app/page.tsx`; the 404 message is in `app/not-found.tsx`; About and Contact follow similar shapes.
 
 Rules of thumb:
 
 - Strings that appear on more than one page belong in `lib/site-config.ts`.
 - Marketing copy specific to one page lives in that page's `app/<route>/page.tsx`.
-- Long-form prose (resume bullets, project case studies, blog posts) will live in MDX under `content/` once Commit B lands. See [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) for that pattern.
+- Long-form prose (project case studies, blog posts) lives in MDX under `content/`. See [`CONTENT_GUIDE.md`](CONTENT_GUIDE.md) for that pattern.
 
 ## Theming and visual tokens
 
@@ -59,7 +59,7 @@ Token vocabulary:
 | `--color-accent-fg` | white | slate-900 | white | Text on accent backgrounds |
 | `--color-focus-ring` | cyan-600 | cyan-300 | amber-600 | `:focus-visible` outline |
 
-When you swap a color, check WCAG AA contrast on **all three themes** on all surfaces. The accessibility scan (`make a11y`) runs axe once per theme on Home, Resume, Contact and About; the historical tight pairs are `--color-text-subtle` on `--color-surface-muted` and accent links inside paragraph copy. It is faster to verify with a contrast checker first.
+When you swap a color, check WCAG AA contrast on **all three themes** on all surfaces. The accessibility scan (`make a11y`) runs axe once per theme on Home, Contact and About; the historical tight pairs are `--color-text-subtle` on `--color-surface-muted` and accent links inside paragraph copy. It is faster to verify with a contrast checker first.
 
 ### How theme switching works
 
@@ -86,7 +86,7 @@ To add a nav link, edit `primaryNav`; do not edit `Nav.tsx` for routing changes.
 
 ### `components/Footer.tsx`
 
-Server component. Renders copyright (year is computed at build time), the tagline, and LinkedIn / GitHub / email links sourced from `site.social` and `site.contactEmail`. To change social URLs or email, edit `lib/site-config.ts`.
+Server component. Renders copyright (year is computed at build time), the tagline, and LinkedIn / GitHub / RSS / Privacy links sourced from `site.social`. To change social URLs, edit `lib/site-config.ts`.
 
 ### `components/ThemeToggle.tsx`
 
@@ -96,7 +96,7 @@ If a future feature needs to read the current theme outside the toggle, prefer a
 
 ### `app/page.tsx` - Home
 
-Five sections: hero (eyebrow + heading + positioning paragraph + four primary CTAs), then bordered section blocks for Featured projects, Latest writing, and Skills snapshot. Featured projects / posts are placeholders today; they wire to real content in Phase 2 / 3. The four CTAs live in a typed `primaryCtas` array at the top of the file.
+Five sections: hero (eyebrow + heading + positioning paragraph + three primary CTAs), then bordered section blocks for Featured projects, Latest writing, and Skills snapshot. Featured projects / posts are placeholders today; they wire to real content in Phase 2 / 3. The three CTAs live in a typed `primaryCtas` array at the top of the file.
 
 ### `app/not-found.tsx` - 404
 
@@ -104,19 +104,19 @@ Static page rendered by Next.js when no route matches. Plain layout (the global 
 
 ### `components/RecruiterSummary.tsx`
 
-Server component. Wraps `content/recruiter-summary.mdx` in an `<aside aria-label="Recruiter summary">` with compact prose styling. Used on Home, About, and Resume; will also mount on Projects and Blog indexes in later phases. Edit the MDX file, not the component, to change the visible text.
+Server component. Wraps `content/recruiter-summary.mdx` in an `<aside aria-label="Recruiter summary">` with compact prose styling. Used on Home and About; will also mount on Projects and Blog indexes in later phases. Edit the MDX file, not the component, to change the visible text.
 
 ### `app/about/page.tsx` - About
 
 Six sections in order: introduction H1, RecruiterSummary block, Professional summary, Testing philosophy, Why AI plus QA matters, What I'm building toward, Current focus areas. All section copy is local to this file. Edit any heading or paragraph in place.
 
-### `app/resume/page.tsx` - Resume
+### `app/test-commander/page.tsx` - Test Commander
 
-Renders `content/resume/resume.mdx` inside a `prose prose-slate` article. Above the MDX it shows the H1, three call-to-action buttons (Contact me, LinkedIn, GitHub) sourced from `lib/site-config.ts`, and the RecruiterSummary block. To update resume content, edit the MDX; to change the CTAs or social URLs, edit `lib/site-config.ts`. The downloadable PDF link will land in Phase 4.
+Single-file flagship showcase. Fifteen content sections plus hero, pitch strip, and CTA. In order: hero (asymmetric — title + value paragraph + CTAs on the left, a `Terminal` preview card on the right; below the CTAs sits the safety-positioning tagline "Autonomous where safe. Human-governed where it matters."), pitch strip, (01) "what it is" with a horizontal transformation cascade, (02) "why it exists" problem-framing grid, (03) "for manual testers" input → output diptych, (04) the workflow centerpiece (seven step cards with chevron connectors + per-step descriptions), (05) Phase I scope (in vs deferred), (06) three example artifacts as terminal-styled code blocks, (07) make-command reference table, (08) five-card audience grid, (09) five design principles, (10) **Capability roadmap** — five-phase capability strip with Phase I marked current, (11) **Implementation roadmap** — nine-stage team-adoption maturity model rendered as a 3-col grid where each card uses a `tone` (observe / design / execute / scale / evolve) to progress visual weight from neutral to accent, (12) **Autonomy levels** — six-card grid (Level 0-5) with Level 3 carrying an accent border and a "Recommended default" pill, plus a blockquote calling out the Level 3 default, (13) **Continuous quality agent mode** — two-column section with a pull-quote, a chevron-connected eight-step continuous-loop diagram, and a Terminal-styled sample PR comment. Then the CTA. Content models (`workflowSteps`, `phaseIIncludes`, `phaseIDefers`, `makeCommands`, `audiences`, `principles`, `roadmap`, `implementationStages`, `autonomyLevels`, `continuousFlow`, `samplePrComment`) are typed arrays at the top of the file — edit those to tweak copy without touching JSX. To change the OG card, edit the Test Commander block in `scripts/generate-og-images.tsx`. JSON-LD is a one-off `CreativeWork` defined inline (not via `lib/seo/structured-data.ts`) because no other route needs the exact shape.
 
 ### `app/contact/page.tsx` - Contact
 
-Three contact-channel cards (Email, LinkedIn, GitHub) defined in a local `channels` array. Each card has a label, the contact handle, and a one-line note about expected response. URLs come from `lib/site-config.ts`. The footer mentions a Phase 6 scheduling link; no form today.
+Two contact-channel cards (LinkedIn, GitHub) defined in a local `channels` array. Each card has a label, the contact handle, and a one-line note about expected response. URLs come from `lib/site-config.ts`. The footer mentions a Phase 6 scheduling link; no form today.
 
 ### `lib/content/projects.ts` - project content loader
 
@@ -154,10 +154,6 @@ Typed JSON-LD builders for schema.org structured data: `personJsonLd()`, `breadc
 
 Build-time PNG generator. Runs via `npm run build:og` (wired as `prebuild`). Emits `public/og/default.png` plus one PNG per project (`public/og/projects/<slug>.png`) and one per post (`public/og/blog/<slug>.png`). To change the card design, edit the `Card` component inside the script. To change the font, swap the file paths under `loadFonts()` - currently Inter 400 + 600 from `@fontsource/inter`. New projects and posts pick up new OG images on next `make build`.
 
-### `scripts/generate-resume-pdf.tsx` - build-time resume PDF
-
-Runs via `npm run build:resume-pdf` (wired as `postbuild`). Spins up a local `serve out` on port 4747, drives Playwright headless Chromium to `/resume/`, forces the light theme via `addInitScript`, prints to PDF with Letter size + 0.6" margins, and writes `out/resume.pdf`. The PDF is a build artifact - never committed. To change formatting, edit `content/resume/resume.mdx`; the PDF follows whatever the `/resume` page renders.
-
 ### `components/mdx/Diagram.tsx`, `TechList.tsx`, `RepoLink.tsx` - MDX building blocks
 
 Available globally in MDX via `mdx-components.tsx`. `Diagram` renders a captioned figure (dashed-bordered placeholder when no `src`); `TechList` renders a row of pill tags; `RepoLink` renders a bordered call-to-action link to a repository. Each follows the design tokens so it works in all three themes without per-component theme logic.
@@ -165,11 +161,7 @@ Available globally in MDX via `mdx-components.tsx`. `Diagram` renders a captione
 ## Adding a nav link or footer link
 
 1. **Nav:** add an entry to `primaryNav` in `lib/site-config.ts`. Create `app/<your-route>/page.tsx`. No changes to `Nav.tsx` needed.
-2. **Footer:** the social block is hard-coded to three slots (LinkedIn, GitHub, email). To add a fourth, edit `components/Footer.tsx` and add the new URL to `site.social` in `lib/site-config.ts`. Keep the labels short - the footer wraps responsively but does not scroll horizontally.
-
-## Updating the resume
-
-Coming in Commit B. The plan: `content/resume/resume.mdx` is the single source. `/resume` renders it; `/resume.pdf` is generated from it at build time (Phase 4). The downloadable PDF link on Home (`Download Resume` CTA) already points at `/resume.pdf`.
+2. **Footer:** the social block lists LinkedIn and GitHub (plus RSS and Privacy). To add a channel, edit `components/Footer.tsx` and add the new URL to `site.social` in `lib/site-config.ts`. Keep the labels short - the footer wraps responsively but does not scroll horizontally.
 
 ## SEO basics
 
@@ -194,4 +186,3 @@ A Playwright spec under `tests/e2e/recruiter-journey.spec.ts` asserts the canoni
 - **OG image URL 404s in production but works locally**: Fixed in Phase 4. OG images are now generated at build time by `scripts/generate-og-images.tsx` and written to `public/og/...` with explicit `.png` extensions. If a new project or post is missing its OG image, the prebuild step did not run - check that `npm run build` invokes `prebuild` (it should by default; package.json wires it).
 - **CSP errors in the browser console**: Phase 4 intentionally ships no `Content-Security-Policy` header. Nonce-based CSP is incompatible with `output: "export"` (no runtime to issue per-request nonces) and hash-based CSP would need automated SHA-256 regeneration on every `themeBootstrap` edit. A future hardening pass will add it; the rest of the security baseline (HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options, X-Frame-Options, COOP) is configured on the Amplify app itself.
 - **Security headers missing in production**: Amplify silently ignores `customHeaders:` declared in `amplify.yml`. The source of truth is the Amplify app config (`aws amplify update-app --custom-headers ...`). See [`DEPLOYMENT.md`](DEPLOYMENT.md) "Security headers (Amplify custom-headers)" for the canonical payload and `aws` invocation.
-- **Amplify build fails with "Executable doesn't exist at /root/.cache/ms-playwright/..."**: the build image does not ship Playwright browsers. The `amplify.yml` preBuild runs `npx playwright install chromium`, and the cache block keeps the binary across builds. If you add a new build-time tool that needs a browser or system binary not in Amazon Linux 2023, install it the same way.

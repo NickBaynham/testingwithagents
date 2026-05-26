@@ -43,16 +43,15 @@ This plan implements the requirements in `requirements/business_requirements.md`
 ```text
 testingwithagents/
   app/                       Next.js App Router pages
-    (marketing)/             Home, About, Resume, Contact
+    (marketing)/             Home, About, Contact
     projects/                Index + dynamic [slug]
     blog/                    Index + dynamic [slug]
   content/
     projects/*.mdx
     blog/*.mdx
-    resume/resume.mdx
   components/
   lib/                       Content loaders, MDX config, SEO helpers
-  public/                    Static assets, resume.pdf, OG images
+  public/                    Static assets, OG images
   tests/
     unit/
     e2e/
@@ -130,7 +129,7 @@ Exit criteria:
 - GitHub Actions CI pipeline green on PR; the `deploy` job runs and triggers an Amplify release on push to `main`.
 - Amplify preview URL reachable for the feature branch.
 - `curl -I https://<branch>.<app>.amplifyapp.com/` returns `HTTP/2 200` and the body byte-length matches `out/index.html`; `curl https://<branch>.<app>.amplifyapp.com/this-route-does-not-exist` returns the body of `out/404.html` (not `out/index.html`).
-- The `post-deploy-smoke` job in `.github/workflows/ci.yml` runs `tests/e2e/post-deploy-smoke.spec.ts` against the live Amplify URL after every deploy and **must be green**. It covers: homepage 200 + correct title, unknown route returns the 404 body, six security headers present, OG images serve as `image/png`, `/resume.pdf` serves as `application/pdf`, sitemap lists every route. This is the regression net for every issue catalogued in `docs/DEPLOYMENT.md` "Common deploy failures".
+- The `post-deploy-smoke` job in `.github/workflows/ci.yml` runs `tests/e2e/post-deploy-smoke.spec.ts` against the live Amplify URL after every deploy and **must be green**. It covers: homepage 200 + correct title, unknown route returns the 404 body, six security headers present, OG images serve as `image/png`, sitemap lists every route. This is the regression net for every issue catalogued in `docs/DEPLOYMENT.md` "Common deploy failures".
 
 ---
 
@@ -145,40 +144,38 @@ Tasks:
 3. Home page (`/`):
    - Hero with name, role, tagline ("Software testing for the agentic era.").
    - Positioning paragraph from requirements section 22.
-   - Primary CTAs: View Portfolio, Read the Blog, Download Resume, Contact Me.
+   - Primary CTAs: View Portfolio, Read the Blog, Contact Me.
    - Placeholder sections for Featured Projects, Featured Posts, Skills Snapshot.
 4. About page (`/about`): Professional Summary, Testing Philosophy, Why AI + QA Matters, What I'm Building Toward, Current Focus Areas.
-5. Resume page (`/resume`): MDX-driven content, downloadable PDF link (`/resume.pdf`), target roles list, core skills, technology stack, LinkedIn and GitHub links.
-6. Contact page (`/contact`): email link (mailto), LinkedIn, GitHub, optional Calendly placeholder. No form in MVP.
-7. Recruiter Summary Block component reused on every major page: Home, About, Resume, Projects index, and Blog index. Per requirements section 10.3, this keeps the job-search context visible without dominating the layout. The block reads target roles from a single content source (`content/recruiter-summary.mdx`) so updates land in one place.
-8. SEO primitives: `<title>`, meta description, canonical URL, Open Graph defaults, generated `sitemap.xml`, `robots.txt`.
-9. 404 page.
-10. Author `docs/MAINTENANCE.md` - the site-maintenance handbook. Captures the recurring "how do I change X on the site?" tasks so a future maintainer (or future-you) does not have to re-derive answers from the codebase. Required sections:
-    - Common content edits: hero copy, tagline, positioning paragraph, primary CTAs, target roles, footer links, recruiter-summary text.
-    - Theming and visual tokens: where the slate palette and accent color live, how to swap them, how light/dark is toggled, no-FOUC strategy.
-    - Component catalog: one-line purpose + props for every component in `components/`, kept in sync as components ship.
-    - Adding a nav link or footer link without touching layout code.
-    - Updating the resume: where the source MDX lives, how `/resume.pdf` is generated (Phase 4 link), what target-role list to edit.
-    - SEO basics: per-route `generateMetadata`, OG image overrides, sitemap regeneration triggers.
-    - "If you only change one thing today" quick-reference table at the top, linking to each section.
-    Cross-link `docs/CONTENT_GUIDE.md` (for adding projects/posts/resume) and `docs/ARCHITECTURE.md` (for system structure) to avoid duplication. Each Phase 1 component or page added in this phase ships with its catalog entry in `docs/MAINTENANCE.md` written in the same commit.
+5. Contact page (`/contact`): LinkedIn, GitHub, optional Calendly placeholder. No form in MVP.
+6. Recruiter Summary Block component reused on every major page: Home, About, Projects index, and Blog index. Per requirements section 10.3, this keeps the job-search context visible without dominating the layout. The block reads target roles from a single content source (`content/recruiter-summary.mdx`) so updates land in one place.
+7. SEO primitives: `<title>`, meta description, canonical URL, Open Graph defaults, generated `sitemap.xml`, `robots.txt`.
+8. 404 page.
+9. Author `docs/MAINTENANCE.md` - the site-maintenance handbook. Captures the recurring "how do I change X on the site?" tasks so a future maintainer (or future-you) does not have to re-derive answers from the codebase. Required sections:
+   - Common content edits: hero copy, tagline, positioning paragraph, primary CTAs, target roles, footer links, recruiter-summary text.
+   - Theming and visual tokens: where the slate palette and accent color live, how to swap them, how light/dark is toggled, no-FOUC strategy.
+   - Component catalog: one-line purpose + props for every component in `components/`, kept in sync as components ship.
+   - Adding a nav link or footer link without touching layout code.
+   - SEO basics: per-route `generateMetadata`, OG image overrides, sitemap regeneration triggers.
+   - "If you only change one thing today" quick-reference table at the top, linking to each section.
+   Cross-link `docs/CONTENT_GUIDE.md` (for adding projects/posts) and `docs/ARCHITECTURE.md` (for system structure) to avoid duplication. Each Phase 1 component or page added in this phase ships with its catalog entry in `docs/MAINTENANCE.md` written in the same commit.
 
 Testing:
 
 - Unit tests for `<Nav>`, `<RecruiterSummary>`, `<ThemeToggle>`, and content loaders.
-- Playwright E2E for the recruiter journey: Home -> Resume -> Download link -> LinkedIn link -> Contact.
-- axe-core scans on Home, About, Resume, Contact.
+- Playwright E2E for the recruiter journey: Home -> Contact -> LinkedIn link.
+- axe-core scans on Home, About, Contact.
 
 Documentation:
 
 - Update `docs/ARCHITECTURE.md`: routing, layout, theming.
-- Create `docs/MAINTENANCE.md` per task 10. Update it in the same commit as any new component or page so the catalog never drifts.
-- Update `docs/CONTENT_GUIDE.md`: how the Resume MDX is structured.
+- Create `docs/MAINTENANCE.md` per task 9. Update it in the same commit as any new component or page so the catalog never drifts.
+- Update `docs/CONTENT_GUIDE.md`: content authoring conventions.
 - Update `CHANGELOG.md`, `FEATURES.md`, `TODO.md`.
 
 Exit criteria:
 
-- All six MVP pages render with real layout and copy stubs.
+- All MVP pages render with real layout and copy stubs.
 - `docs/MAINTENANCE.md` is current with every component and page shipped in Phase 1.
 - Recruiter E2E passes.
 
@@ -211,7 +208,7 @@ Tasks:
    - Reshape `<ThemeToggle>` from a binary flip to a three-option control (segmented control, dropdown, or labeled cycle). The chosen pattern must be keyboard-accessible and clearly indicate the active theme; preserve `useSyncExternalStore` so the React 19 `react-hooks/set-state-in-effect` rule still passes.
    - Update `app/layout.tsx` `themeBootstrap`: read `localStorage.theme` first; if absent, set `data-theme="light"` (no longer fall back to `prefers-color-scheme`). Document the change in `docs/ARCHITECTURE.md` "Routing & Layout" and `docs/MAINTENANCE.md` "Theming and visual tokens".
    - Update the existing `theme.spec.ts` so the "first paint matches prefers-color-scheme" assertion is replaced by "first paint is `light` regardless of `prefers-color-scheme` when no `localStorage.theme` is set", plus assertions that the toggle can reach all three themes and that each persists across reload.
-   - Update `tests/a11y/homepage.spec.ts` and `tests/a11y/pages.spec.ts` to run the axe scan once per theme on at least Home, Resume, and Contact, so every palette stays AA-compliant.
+   - Update `tests/a11y/homepage.spec.ts` and `tests/a11y/pages.spec.ts` to run the axe scan once per theme on at least Home, About, and Contact, so every palette stays AA-compliant.
    - Update the catalog entry for `<ThemeToggle>` in `docs/MAINTENANCE.md`, refresh the token table to include the warm theme column, and call out the changed first-paint behavior.
 
 Testing:
@@ -231,7 +228,7 @@ Exit criteria:
 
 - Three projects live with full case studies.
 - Filtering works with and without JavaScript.
-- Three themes ship (slate light default, slate dark, warm amber). First paint is always `light` for users with no stored preference. `make a11y` passes the WCAG AA scan once per theme on Home, Resume, and Contact.
+- Three themes ship (slate light default, slate dark, warm amber). First paint is always `light` for users with no stored preference. `make a11y` passes the WCAG AA scan once per theme on Home, About, and Contact.
 - All tests green; visual baselines committed.
 
 ---
@@ -292,14 +289,12 @@ Tasks:
 6. Font strategy: `next/font` with subset and `display: swap`.
 7. Accessibility pass: focus rings, skip links, ARIA landmarks, color contrast in both themes verified.
 8. Security headers via `next.config.ts` and Amplify response-header rules: `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`. CSP uses a per-request nonce strategy (App Router middleware sets the nonce; inline scripts are nonced via `next/script`). Document the policy and its allow-list in `docs/ARCHITECTURE.md` under "Security Headers".
-9. Generate `/resume.pdf` at build time from the same MDX source used by `/resume`, mitigating the drift risk called out in the Risks table. The build step renders the resume route to PDF via Playwright headless print and writes the output to `public/resume.pdf`. `make build` regenerates it; CI fails if the checked-in copy is stale.
 
 Testing:
 
 - Expand axe scans to every route.
 - Add Playwright keyboard-navigation test: tab through Home, ensure all primary CTAs reachable and have visible focus.
 - Add a CSP regression test that asserts the nonce-bearing `Content-Security-Policy` header is present on the production build and that no inline script lacks a nonce.
-- Add a "resume PDF freshness" test: regenerate the PDF and assert the checked-in `public/resume.pdf` byte-matches the regenerated artifact.
 
 Documentation:
 
@@ -325,10 +320,10 @@ Tasks:
 1. Promote the `main` branch in Amplify to the production environment; disable auto-build on feature branches if they should not consume build minutes.
 2. Custom domain in Amplify: attach `testingwithagents.com` and `www.testingwithagents.com`, request the ACM certificate (DNS-validated via Route 53), and configure the `www` to apex redirect using Amplify's redirect rules.
 3. Route 53 hosted zone: confirm A/AAAA (alias) records point at the Amplify domain target; confirm CAA records permit Amazon issuance.
-4. Production environment variables in Amplify: analytics domain, RSS metadata, contact email, `NEXT_PUBLIC_SITE_URL=https://testingwithagents.com`.
+4. Production environment variables in Amplify: analytics domain, RSS metadata, `NEXT_PUBLIC_SITE_URL=https://testingwithagents.com`.
 5. Plausible (or chosen analytics) configured for production. Local Docker Compose Plausible kept for dev parity.
 6. Privacy notice page (`/privacy`) describing analytics scope.
-7. Final content sweep: typos, broken links, accurate target-role list, latest resume PDF (regenerated by the Phase 4 build step).
+7. Final content sweep: typos, broken links, accurate target-role list.
 8. Soft-launch checklist run by the user against the recruiter, hiring manager, and peer journeys from requirements section 5.
 9. Announcement: LinkedIn post, GitHub README link, optional Hacker News "Show HN" if appropriate.
 
@@ -359,16 +354,17 @@ Pull items from requirements section 19 as time allows. Each item follows the sa
 
 Prioritized backlog:
 
-1. Now / Current Focus page.
-2. Testing Philosophy page.
-3. Tools & Stack page.
-4. Speaking / Writing page.
-5. Recruiter-specific landing page with a single, scoped CTA.
-6. Testing With Agents Lab: experiments index with shorter, lab-note style posts.
-7. Newsletter signup (only if a low-maintenance provider is chosen).
-8. Searchable knowledge base across blog and projects.
-9. Embedded interactive demos for the Universal Testing Language project.
-10. Downloadable portfolio PDF assembled at build time.
+1. **Test Commander landing page** (`/test-commander`). Flagship project showcase. A single, visually-rich marketing page that answers: what is Test Commander, why it matters, how it helps testers, what it produces, why someone should hire or work with the author, and how teams adopt it over time. Sections: hero with one-line value prop and safety-positioning tagline ("Autonomous where safe. Human-governed where it matters."); pitch strip; "what it is" intro; problem framing; workflow loop diagram (Explore → Model → Specify → Automate → Execute → Report → Improve); Phase I scope (in vs deferred); example artifacts (page-inventory YAML, BDD scenario, quality report); terminal-command reference; audience grid (manual testers / automation engineers / QA managers / recruiters / clients); design principles; **Capability roadmap strip (Phase I-V)**; **Implementation roadmap (9-stage team-adoption maturity model: Quality visibility → Requirements review → Guided exploration → BDD generation → Strategic automation → Web console → Sandboxed workspaces → Continuous self-improvement → Governed autonomy)**; **Autonomy levels matrix (Level 0 Read-Only Advisor → Level 5 Fully Autonomous Quality Agent, with Level 3 Pull Request Automation flagged as the recommended team default)**; **Continuous Quality Agent Mode vision (continuous loop diagram + sample PR-comment artifact rendered in the Terminal helper)**; CTA. Wires into `primaryNav`, `app/sitemap.ts`, a build-time OG card via `scripts/generate-og-images.tsx`, JSON-LD `CreativeWork` + `BreadcrumbList`. Test coverage: a focused Playwright spec asserts the workflow loop, terminal commands, every implementation-roadmap stage, every autonomy level, and the continuous-agent flow render; the existing `pages.spec.ts`, `nav.spec.ts`, `recruiter-journey.spec.ts`, `post-deploy-smoke.spec.ts`, and `a11y/pages.spec.ts` extended to include the new route. Must pass axe-core WCAG AA on light + dark + warm themes.
+2. Now / Current Focus page.
+3. Testing Philosophy page.
+4. Tools & Stack page.
+5. Speaking / Writing page.
+6. Recruiter-specific landing page with a single, scoped CTA.
+7. Testing With Agents Lab: experiments index with shorter, lab-note style posts.
+8. Newsletter signup (only if a low-maintenance provider is chosen).
+9. Searchable knowledge base across blog and projects.
+10. Embedded interactive demos for the Universal Testing Language project.
+11. Downloadable portfolio PDF assembled at build time.
 
 ---
 
@@ -399,7 +395,7 @@ Living documents updated at the end of every task:
 Reference documents updated when their domain changes:
 
 - `docs/ARCHITECTURE.md` - structure, routing, theming, SEO, headers.
-- `docs/CONTENT_GUIDE.md` - how to add a project, post, or resume update.
+- `docs/CONTENT_GUIDE.md` - how to add a project or post.
 - `docs/MAINTENANCE.md` - site-maintenance handbook: common edits, theming, component catalog, nav/footer changes, "if you only change one thing today" quick reference.
 - `docs/TESTING.md` - how to run and extend the test suites.
 - `docs/DEPLOYMENT.md` - environments, DNS, secrets, rollback.
@@ -412,7 +408,6 @@ Per requirements section 16, the site itself should embody the working culture t
 |---|---|
 | Scope creep into "Lab" features before MVP is shipped | Phase gates; Lab work is Phase 6 only |
 | Visual design overinvestment | Phase 1 ships with restrained, token-driven design; iterate after launch |
-| Content drift between resume PDF and Resume page | Phase 4 generates `public/resume.pdf` from the Resume MDX at build time; CI fails if the checked-in PDF is stale |
 | Accessibility regressions when adding components | axe-core in CI on every route |
 | Broken outbound links over time | lychee in CI plus scheduled monthly run |
 | Hosting lock-in to AWS Amplify | Keep Next.js output framework-portable (no Amplify-only APIs in application code); document deploy paths and rollback in `docs/DEPLOYMENT.md`; alternate target (Netlify or self-hosted Node) documented as a fallback |

@@ -9,7 +9,7 @@ import type { Post } from "@/lib/content/blog";
 import type { Project } from "@/lib/content/projects";
 
 describe("personJsonLd", () => {
-  it("emits a Person with name, url, sameAs, and email", () => {
+  it("emits a Person with name, url, and sameAs (no email)", () => {
     const ld = personJsonLd();
     expect(ld["@context"]).toBe("https://schema.org");
     expect(ld["@type"]).toBe("Person");
@@ -18,7 +18,7 @@ describe("personJsonLd", () => {
     expect(Array.isArray(ld.sameAs)).toBe(true);
     expect((ld.sameAs as string[]).some((s) => s.includes("linkedin"))).toBe(true);
     expect((ld.sameAs as string[]).some((s) => s.includes("github"))).toBe(true);
-    expect((ld.email as string).startsWith("mailto:")).toBe(true);
+    expect(ld).not.toHaveProperty("email");
   });
 });
 

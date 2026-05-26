@@ -5,13 +5,6 @@ frontend:
       commands:
         - nvm use 24
         - npm ci --no-audit --no-fund
-        # postbuild renders /resume to PDF via Playwright headless Chromium.
-        # Amplify's build image does not ship browsers; install on demand
-        # and rely on the cache below to keep subsequent builds fast.
-        # Both chromium and chromium-headless-shell are required: Playwright
-        # 1.49+ launches the headless-shell binary by default and it is
-        # packaged separately.
-        - npx playwright install chromium chromium-headless-shell
     build:
       commands:
         - npm run build
@@ -23,7 +16,6 @@ frontend:
     paths:
       - node_modules/**/*
       - .next/cache/**/*
-      - /root/.cache/ms-playwright/**/*
 # Security headers are documented below for reference but Amplify ignores
 # the `customHeaders:` block in amplify.yml at the CloudFront layer. The
 # *source of truth* for production headers is the Amplify app config,

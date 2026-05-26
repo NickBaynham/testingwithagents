@@ -73,12 +73,13 @@ export default function PrivacyPage() {
           Questions or removal requests
         </h2>
         <p className="text-[var(--color-text-muted)]">
-          Email{" "}
+          Reach out via{" "}
           <a
-            href={`mailto:${site.contactEmail}`}
+            href={site.social.linkedin}
+            rel="me noopener"
             className="text-[var(--color-accent)] underline underline-offset-4 hover:text-[var(--color-accent-hover)]"
           >
-            {site.contactEmail}
+            LinkedIn
           </a>
           . If you would like access logs scrubbed, include the IP range and rough timeframe and
           I&rsquo;ll request removal from the upstream provider.

@@ -2,7 +2,12 @@ import { test, expect } from "@playwright/test";
 
 const pages = [
   { path: "/about/", h1: /coming from|^About/i, navLabel: "About", hasSummary: true },
-  { path: "/resume/", h1: /Nick Baynham/i, navLabel: "Resume", hasSummary: true },
+  {
+    path: "/test-commander/",
+    h1: /Test Commander/i,
+    navLabel: "Test Commander",
+    hasSummary: false,
+  },
   { path: "/contact/", h1: /Let.+talk/i, navLabel: "Contact", hasSummary: false },
 ] as const;
 
@@ -22,7 +27,7 @@ for (const p of pages) {
   } else {
     test(`${p.path} does not render the recruiter summary block`, async ({ page }) => {
       // Recruiter summary is intentionally absent on Contact per the plan
-      // (Home, About, Resume, Projects, Blog only - keeps the layout focused).
+      // (Home, About, Projects, Blog only - keeps the layout focused).
       await page.goto(p.path);
       await expect(page.getByRole("complementary", { name: /recruiter summary/i })).toHaveCount(0);
     });

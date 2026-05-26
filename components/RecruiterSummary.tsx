@@ -1,8 +1,8 @@
 import SummaryBody from "@/content/recruiter-summary.mdx";
 
 /*
-  Renders the recruiter-summary block on Home, About, Resume, and (later)
-  the Projects/Blog indexes. Content lives in content/recruiter-summary.mdx;
+  Renders the recruiter-summary block on Home, About, and (later) the
+  Projects/Blog indexes. Content lives in content/recruiter-summary.mdx;
   edit there so every page updates together.
 
   Styling is explicit (not prose) because Tailwind's typography plugin sets

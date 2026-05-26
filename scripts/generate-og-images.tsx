@@ -136,6 +136,18 @@ async function main() {
   await writePng(path.join(OUT_DIR, "default.png"), defaultPng);
   count += 1;
 
+  // Test Commander (standalone flagship page)
+  const testCommanderPng = await renderToPng(
+    <Card
+      eyebrow="testingwithagents.com / Test Commander"
+      title="Test Commander"
+      summary="A human-guided agentic testing workflow: explore, specify, automate, execute, report."
+    />,
+    fonts,
+  );
+  await writePng(path.join(OUT_DIR, "test-commander.png"), testCommanderPng);
+  count += 1;
+
   // Per-project
   const projects = await getAllProjects();
   for (const project of projects) {

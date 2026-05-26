@@ -11,7 +11,6 @@ type Cta = { label: string; href: string; emphasis?: boolean };
 const primaryCtas: readonly Cta[] = [
   { label: "View Portfolio", href: "/projects", emphasis: true },
   { label: "Read the Blog", href: "/blog" },
-  { label: "Download Resume", href: "/resume.pdf" },
   { label: "Contact Me", href: "/contact" },
 ];
 

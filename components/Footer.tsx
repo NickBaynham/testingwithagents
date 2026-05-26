@@ -28,11 +28,6 @@ export function Footer() {
             </a>
           </li>
           <li>
-            <a href={`mailto:${site.contactEmail}`} className="hover:text-[var(--color-accent)]">
-              Email
-            </a>
-          </li>
-          <li>
             <a href="/rss.xml" className="hover:text-[var(--color-accent)]">
               RSS
             </a>
