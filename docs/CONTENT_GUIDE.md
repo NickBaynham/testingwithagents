@@ -79,6 +79,8 @@ The Home "Featured projects" section automatically renders the top three project
 
 ## Authoring a Blog Post
 
+> **For agents:** the operational step-by-step lives in [AGENT_BLOG_PUBLISHING.md](AGENT_BLOG_PUBLISHING.md). That file covers the hardcoded post-count assertions in `tests/e2e/blog.spec.ts`, the OG-image regeneration flow, the CHANGELOG convention, the body-style conventions for long-form project-log posts, the `make ci` gate, and the commit/push pattern. Read it before authoring `content/blog/*.mdx` so you don't have to rediscover the conventions every time.
+
 1. Create `content/blog/<slug>.mdx`. The filename slug must match the `slug` field in the frontmatter (the loader enforces this).
 2. Frontmatter (validated against `postFrontmatterSchema` in `lib/content/blog.ts`):
 

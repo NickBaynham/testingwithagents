@@ -23,6 +23,7 @@ This file captures project identity and working norms. Implementation details li
 
 - [Business Requirements](requirements/business_requirements.md) - scope, user journeys, functional and non-functional requirements, MVP definition, success metrics.
 - [Build Plan](plan/plan.md) - phased delivery plan, technology stack and version targets, repository layout, Make targets, testing and documentation strategy, risks, per-phase exit criteria.
+- [Agent Runbook: Publishing a Blog Post](docs/AGENT_BLOG_PUBLISHING.md) - operational runbook for adding a new post. Read this before authoring any `content/blog/*.mdx`. Covers the frontmatter schema, body conventions for the long-form project-log style, the five hardcoded test-count assertions in `tests/e2e/blog.spec.ts` that must be updated, the OG-image regeneration flow, the CHANGELOG convention, the local `make ci` gate, and the commit/push pattern.
 
 @requirements/business_requirements.md
 @plan/plan.md
