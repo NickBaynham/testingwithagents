@@ -1,0 +1,462 @@
+---
+title: "Test Commander Phase 2: five commands, two new conventions, and the discipline of being domain-agnostic"
+slug: "test-commander-phase-2-domain-agnostic-by-design"
+excerpt: "Phase 2 shipped tc-requirements — a five-command skill that reviews requirements, user stories, and acceptance criteria against a universal-English rubric, with project-domain vocabulary entering only through explicit extension hooks. The day's biggest lesson wasn't a bug. It was the discovery, mid-Step 2.2, that the seeded test fixture I'd just committed was a fictional online bookstore — and a generic testing tool that ships with an e-commerce fixture is making a quiet claim about its scope. The correction became Decision D19, two new Per-Phase Conventions, a customization guide, and a repeatable discipline."
+publishedAt: "2026-05-27"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+  - "Project Logs"
+tags:
+  - "agents"
+  - "claude-code"
+  - "plugin-development"
+  - "tdd"
+  - "phased-delivery"
+  - "test-commander"
+  - "session-walkthrough"
+  - "domain-agnostic"
+---
+
+Phase 1 of Test Commander closed with a postmortem: the helpers worked, the tests were green, the tag was pushed, but the SKILL.md file Claude reads at runtime still said "behavior arrives in Phase 1" for every command. The user typed `/tc:init` and got routed away from the implementation. The fix was easy. The lesson — "your audit checklist must include the user's actual entry point" — became a Per-Phase Convention and a sign-off-test assertion.
+
+Phase 2 picked up there and ran the next link in the chain: a five-command `tc-requirements` skill that reviews requirements, user stories, and acceptance criteria, computes coverage, and seeds Phase-4 test ideas. Nine sub-steps. Seventy-six new tests. One annotated `phase-2` tag on origin.
+
+The day's biggest lesson wasn't a bug. It was the discovery, mid-Step 2.2, that the seeded test fixture I'd just committed was a fictional online bookstore — and a generic testing tool that ships with an e-commerce fixture is making a quiet claim about its scope. The correction became Decision D19, two new Per-Phase Conventions, a customization guide, and a repeatable discipline. The rest of the phase exercised that discipline through five command sub-steps, a documentation pass, testing finalization, and a test-first sign-off that turned red ↦ green on exactly the closing edits it asserted.
+
+## The plan first, again
+
+Phase 2's outline existed in `planning/plan.md` before any code shipped: nine sub-steps following the same scaffold as Phase 1 — a setup step, command implementations under strict TDD, a dedicated documentation pass, a testing-finalization step that bumps the verifier's phase cap, and a six-sub-step sign-off ending in an annotated tag.
+
+The shape of `tc-requirements` was already constrained. Five commands, one per slot in the requirements review chain:
+
+| Command | Purpose | Writes |
+| --- | --- | --- |
+| `/tc:review-requirements` | 16-dimension requirements rubric (clarity, testability, completeness, …, automation-suitability) | `requirements/requirements-review.md`, `requirements-inventory.md`, `open-questions.md` |
+| `/tc:review-user-stories` | INVEST + role-action-benefit shape + AC-pointer presence | `requirements/user-story-review.md` |
+| `/tc:review-acceptance-criteria` | 5 AC-rubric checks + orphan detection | `requirements/acceptance-criteria-review.md` |
+| `/tc:requirements-coverage` | Cross-reference REQ-IDs with test-ideas, BDD features, automation map | `requirements/requirements-coverage.md`, `traceability/requirements-map.md` |
+| `/tc:requirements-to-tests` | Seed Phase-4-compatible test ideas with the `tc-test-idea/v1` schema | `test-ideas/<REQ-ID>.md` (one per requirement) |
+
+Each command was specified with a partition table mapping rubric dimensions to concrete mechanical checks. Phase 1 had been about the workspace and the four orchestration commands. Phase 2 was about turning the workspace into something testers could actually push requirements through.
+
+## Step 2.1: scaffold, fixture, and a quiet mistake
+
+Step 2.1 was the prep step — author the `tc-requirements/SKILL.md` stub with deferral wording for each of the five commands, scaffold empty `methodology/` and `templates/` directories for sub-steps 2.2–2.6 to fill, and build the seeded-flawed-requirements fixture that drives every per-command test.
+
+The fixture has a strict contract. It must carry at least one intentional defect per rubric dimension. The dimensions are tagged inline:
+
+```markdown
+<!-- defect: testability -->
+REQ-002: The site shall be user-friendly.
+
+<!-- defect: ambiguity -->
+REQ-015: The shopping cart shall persist for a reasonable time.
+
+<!-- defect: risk -->
+REQ-016: The site shall accept and store credit-card primary account numbers
+directly, without third-party tokenization, to simplify the checkout flow.
+```
+
+Every dimension a future helper's mechanical check claims to detect must trigger on at least one of those `<!-- defect: X -->` markers. The scaffold test asserts the coverage — adding a rubric dimension means adding a seeded defect, and forgetting to seed it fails the test. Fixture-as-contract.
+
+The scaffold test landed red (16 failing assertions, one per missing file), the artifacts landed, all 15 tests went green, and Step 2.1 closed.
+
+The mistake was the bookstore.
+
+## The Juice-Shop reflex and Decision D19
+
+The seeded fixture I committed in Step 2.1 had a coherent narrative: a fictional online bookstore. Search the catalog. Add to cart. Apply coupons. Complete checkout. Credit-card storage. Refund authorization. The REQ-IDs read like a product specification for an e-commerce platform.
+
+Twelve hours later, opening Step 2.2 to design the requirements-review partition table, the bookstore reflex bit again — the partition-table rows for `data-rules`, `risk`, and `roles-permissions` started filling with PCI vocabulary:
+
+- `data-rules` sensitive-data keywords: `{password, email, credit card, PAN, primary account number, SSN, PHI}`
+- `risk` compliance keywords: `{credit card, PAN, primary account number, social security, SSN, PHI, plain text, unencrypted, raw password}`
+- `roles-permissions` verbs: `{issue, refund, delete, approve, …}` with roles `{admin, manager, customer, guest, staff}`
+
+The user caught it during review with a direct question: *"It looks like the requirements are too specific — are these left over from the Juice Shop project? This is supposed to be a generic core software testing tool and not tied to any one targeted application. Please analyze."*
+
+The Juice Shop reference is to OWASP Juice Shop, the deliberately-vulnerable web app that's a standard testbed for security exploration. There was no Juice Shop residue in the repo (grep confirmed). The bookstore was something I'd invented in Step 2.1 as a placeholder narrative. But the question was the right one. A generic testing tool cannot ship with hardcoded PCI keywords baked into its default rubric, because the project Test Commander is testing might be a research data platform, a clinical EMR, an internal workflow tool, or anything else entirely. Until Phase 4's exploratory testing actually runs against a real target, the tool has no business assuming what the target is.
+
+I separated the concerns. Two passes happened in sequence:
+
+**Pass 1 — the partition table.** Three rows got reshaped to ship universal cores plus an explicit `<workspace>/config.yaml` extension hook:
+
+- `data-rules` ships `{password, secret, token, credential, key}` — generic security primitives. Extensible via `tc-requirements.data-rules.sensitive-keywords` for project-specific terms (PCI: `PAN`; HIPAA: `PHI`; etc.).
+- `risk` ships `{plain text, plaintext, unencrypted, raw password, hardcoded credential, default password}` — universal security anti-patterns. Extensible via `tc-requirements.risk.compliance-keywords`.
+- `roles-permissions` ships verbs `{delete, approve, reject, modify, grant, revoke}` and roles `{admin, owner, operator}` — universal. Extensible on both lists.
+
+The helper unions defaults with project-supplied lists at runtime. Extensions never replace defaults — they only add. The shipped seeded fixture exercises only the universal cores; every seeded defect must trigger via the cores alone.
+
+**Pass 2 — the fixture.** The bookstore narrative was rewritten to a deliberately-generic SaaS-surface narrative. The REQ entries now span authentication, forms, reports, sessions, dashboards, notifications, audit logs — universal SaaS primitives across multiple surfaces, with no single domain dominating. The fixture README explicitly says "the narrative is deliberately generic" so future contributors do not interpret it as a scope claim.
+
+The deeper change was Decision D19, added to `planning/plan.md`:
+
+> **D19. Test Commander is product-domain-agnostic; consuming projects supply all product-specific knowledge.** Every shipped rubric keyword set, tag taxonomy, methodology doc, fixture, command-page example, and illustrative example in this repository uses universal English and software-engineering vocabulary — no e-commerce, finance, healthcare, research, or other product-domain terms in the shipped defaults. Product-specific vocabulary enters only through four explicit hooks: (1) per-project `<workspace>/config.yaml` extensions; (2) the documents the consuming project supplies under `documents/uploaded/`; (3) Phase 3 project-knowledge ingestion; (4) project-defined values inside shipped tag namespaces.
+
+D19 set off a sweep. Six other status-line locations and illustrative examples got de-domain-ified in the same commit: Phase 5 BDD tags (`@risk:revenue` was the only PCI-y default), the Phase 10.5 intent-router examples and approval-gate code blocks (which had used `checkout` as the canonical feature), the Demo Command Sequence, and two governance docs. The new convention paragraph in the plan now reads:
+
+> When the plan, docs, or examples need an illustrative feature name, prefer universal SaaS surfaces — `sign-in`, `dashboard`, `search`, `file upload`, `scheduled job`, `notification`, `audit log` — over domain-specific features like `checkout`, `refund`, `prescription`, or `trade settlement`.
+
+`sign-in` became the canonical illustrative feature across the project.
+
+## Per-Phase Convention №1: customization-guide audit
+
+D19 by itself is a discipline statement. To make it operational, Phase 2 needed two things: a user-facing doc that explains the extension model, and a binding rule that every future phase shipping an extensible surface must update that doc.
+
+The user-facing doc landed at `docs/user-guide/customizing-for-your-project.md`. It opens with the principle ("Test Commander does not know in advance whether you are testing a banking app, a hospital information system, a research data platform, an online retailer, or an internal tool"), names the four extension hooks, gives the Phase 2 `config.yaml` schema, and walks through three worked examples — e-commerce, healthcare, research-data-platform — that each extend the same three rubric dimensions with domain-appropriate vocabulary. The README, vision, methodology, getting-started, and workflow docs all link into it.
+
+The binding rule landed as a new Per-Phase Convention:
+
+> **Customization-guide audit (per D19).** Every phase that ships a configurable surface — a new `<workspace>/config.yaml` schema key, a new tag namespace, a new keyword set, a new policy override, a new project-specific extension point — MUST update `docs/user-guide/customizing-for-your-project.md` in the same sub-step that ships the surface, with at least one worked example showing how a consuming project extends it for their domain. The phase's dedicated documentation pass and its sign-off both verify the customization guide reflects every extensible surface shipped to date. If a phase ships no new configurable surface, the sign-off explicitly records "no new extensible surface; customization guide unchanged".
+
+The phrase "explicit silence" matters here. Sub-steps that ship no new extensible surface still have to record that in the sign-off — silence is not evidence of compliance. Several Phase 2 sub-steps recorded "no new extensible surface" honestly, and the sign-off test now grep-asserts the customization guide carries the `tc-requirements:` YAML block with at least three worked examples.
+
+## TDD across five commands: a parser bug, a plural-form bug, and a pattern that pays back
+
+Steps 2.2 through 2.6 implemented the five `/tc:*` commands. Each followed the same micro-cycle Phase 1 had established: write tests defining behavior, watch them go red, implement the helper, watch them go green, author methodology and template, author per-command page, update SKILL.md to surface shipped behavior (per the convention Phase 1 invented), `make verify`, commit.
+
+The discoveries clustered in two places — Step 2.2 (the first command and the heaviest implementation) and Step 2.4 (the AC review, which surfaced a class of fixture bug).
+
+### Step 2.2's parser bug
+
+The first run of `tests/test_review_requirements.py` had 10 tests; 4 failed. The integration assertion ("every one of the 16 rubric dimensions produces a finding traced to the seeded fixture") came back missing every dimension except `completeness` and `testability`. That was suspicious — a partition table where 14 of 16 checks silently produce no findings is not a partition table that works.
+
+The root cause was in the parser. I'd written something like:
+
+```python
+for i, m in enumerate(matches):
+    rid = f"REQ-{m.group(1).zfill(3)}"
+    start = m.end()
+    end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+    body = text[start:end].strip()
+```
+
+`m.end()` is the offset of the character *after* the match. For a header like `REQ-001: The system shall provide...`, the match captures `REQ-001: ` (the marker and the colon and the space), and the body lives **inside** `m.group(2)` — the first line of the requirement — combined with whatever continuation text follows before the next marker. `text[m.end():next_match.start()]` returns only the continuation text. For a single-line requirement (which most of the seeded fixture's entries are), that's an empty string.
+
+Empty bodies meant `len(body.split()) <= 10` was trivially true (the completeness threshold) and `\bshall\b` failed to match (the testability check looks for RFC-2119 modals). Every other check — the buzzword scanner, the qualitative-quantifier check, the ambiguity-adjective check — saw nothing to scan and produced nothing.
+
+The fix was to combine the captured first-line body from `m.group(N)` with the inter-match continuation:
+
+```python
+first_line = m.group(2).strip()
+next_start = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+continuation = text[m.end():next_start]
+# ... strip HTML comments, collapse blank lines ...
+body = (first_line + " " + continuation).strip() if continuation else first_line
+```
+
+Tests went 16/16 dimensions found. The lesson — *any regex parser that delimits "body" by match boundaries must explicitly include `match.group()` content for single-line entries* — went into the plan's Phase 2 lessons-learned section the same commit that landed the fix.
+
+### The plural-form bug
+
+The second 2.2 bug was smaller and instructive. The data-rules check uses keyword sets like `{password, secret, token, credential, key}`. The implementation matched at word boundaries:
+
+```python
+re.search(rf"\b{re.escape(keyword)}\b", body, re.IGNORECASE)
+```
+
+REQ-011's body is `"User passwords are stored by the system."` — plural `passwords`. The boundary `\b` requires a non-word character on each side; the `s` in `passwords` keeps the boundary from matching `\bpassword\b`. The data-rules check silently missed the plural.
+
+Fix: append `s?` for single-token keywords.
+
+```python
+re.search(rf"\b{re.escape(keyword)}s?\b", body, re.IGNORECASE)
+```
+
+Multi-token phrases (`credit card`, `primary account number`) match literally; the plural-form handling is only needed for single tokens. The fix is two characters wide and the lesson is the kind of thing that shows up once across an entire project and saves an hour of debugging the next time.
+
+### Step 2.3: mirroring pays off
+
+Step 2.3 implemented `/tc:review-user-stories` — INVEST plus a role-action-benefit shape check plus the `needs-acceptance-criteria` flag. Eight mechanical checks total, against a fixture with six seeded INVEST violations.
+
+`tests/test_review_user_stories.py` had nine assertions. The helper landed **9/9 green on the first run.**
+
+The reason was structural mirroring. `review_user_stories.py` cribbed `review_requirements.py`'s skeleton — same `parse_workspace()` walker, same `Requirement` → `UserStory` dataclass rename, same `apply_checks()` loop, same writer pattern, same `main()` CLI shape. The parser bug from 2.2 was already fixed in the inherited code. The plural-form handling was already in place. The output-writer's idempotency contract (overwrite byte-deterministically) was identical.
+
+This is a pattern worth naming: **when authoring a sibling helper that consumes the same workspace shape and parses the same family of ID-prefixed Markdown markers, copy the closest sibling's skeleton and adapt the per-dimension checks.** Phase 2 has five helpers and four of them share roughly 70% of their structure. The skeleton is already debugged; new bugs concentrate in the new mechanical checks, which the per-command unit tests target precisely.
+
+### Step 2.4: fixture meta-commentary contamination
+
+The AC review (Step 2.4) was where the seeded fixture bit back.
+
+The acceptance-criteria fixture uses parenthetical asides to explain *why* each AC is a defect:
+
+```markdown
+<!-- defect: ac-missing-edge-cases -->
+AC-001-01: Given a user with at least one record in their view,
+When they click "Open" and confirm the prompt,
+Then the record is shown and a confirmation banner appears.
+(Happy path only — no coverage of expired records, locked records,
+or stale-data edge cases.)
+```
+
+The mechanical check for `ac-missing-edge-cases` looks for the absence of edge keywords `{except, unless, otherwise, edge}` in the AC body. The body of AC-001-01 contains "edge cases" inside the parenthetical aside that's explaining the defect. The check matched on `\bedge\b` and concluded the AC *did* cover edges. False negative.
+
+Same pattern affected `ac-missing-negative-cases` (the parenthetical contained "fails", "rejected", "network drops") and `ac-missing-role-context` (the parenthetical for AC-004-01 reads `(Which role is permitted to click the delete button — end user, operator, admin?)` and the words `operator` and `admin` are in the role-qualifier set the check uses to satisfy itself the AC names a role).
+
+Three of the five AC-rubric checks were being fooled by their own fixture's explanations.
+
+The fix was a preprocessor:
+
+```python
+_PARENTHETICAL = re.compile(r"\([^()]*\)")
+
+def _check_body(ac: AcceptanceCriterion) -> str:
+    """Return the AC body with parenthetical asides stripped."""
+    return _PARENTHETICAL.sub("", ac.body).strip()
+```
+
+Every check operates on `_check_body(ac)`, not on `ac.body`. The original body is preserved in the AC dataclass for display in the review file; only the keyword scanners see the stripped version. The lesson — *when a seeded fixture has explanatory annotations describing why an entry is a defect, those annotations almost always contain the very vocabulary the mechanical check looks for* — went into the lessons-learned subsection.
+
+### Step 2.5: the template-stub-vs-generated-artifact problem
+
+Step 2.5 (`/tc:requirements-coverage`) introduced a dependency: it requires the `requirements-inventory.md` artifact that `/tc:review-requirements` produces. The natural refusal-test was "if the inventory is missing, refuse."
+
+But the workspace template ships an empty placeholder for every artifact slot. `/tc:init` copies the placeholder into the workspace. So `requirements/requirements-inventory.md` *exists* from the moment a user runs `/tc:init`, with a one-liner saying "Populated by `/tc:review-requirements` (Phase 2)." A `path.is_file()` check is not strong enough to distinguish "the upstream helper has run" from "the upstream helper has never run."
+
+The fix was an explicit "is this artifact generated, or is it still the template stub?" check:
+
+```python
+def _inventory_is_generated(inventory_path: Path) -> bool:
+    text = inventory_path.read_text(encoding="utf-8")
+    return "Total: **" in text or "_No requirements parsed yet._" in text
+```
+
+Both markers are produced only by the Step 2.2 generator. The template stub contains neither. If neither marker is present, the helper raises `InventoryMissingError`.
+
+The lesson — *every helper that consumes an upstream-generated artifact needs a "has the upstream actually run?" check, not just a "does the file exist?" check* — was the explicit prediction in Step 2.5's lessons entry that this same bug would recur in Step 2.6.
+
+### Step 2.6: the predicted recurrence
+
+Step 2.6 (`/tc:requirements-to-tests`) consumes two artifacts: the requirements review (mandatory) and the AC review (optional). The first run of its test suite failed exactly one assertion: `test_no_ac_review_does_not_add_ac_findings_section`. The detection logic was `ac_review_path.is_file() and ac_review_path.stat().st_size > 0`, which is true even when the template's placeholder is the only thing in the file. Step 2.5's prediction was confirmed at the unit level.
+
+The fix mirrored 2.5's pattern verbatim. `_ac_review_is_generated()` checks for the Step 2.4 generator's structural markers (`## Executive summary` or `no acceptance criteria found`). Two-line fix. Predicted recurrence, predicted resolution.
+
+The other bug in 2.6 was smaller — a cross-helper return-type mismatch. `review_requirements.apply_checks()` returns `tuple[list[Finding], list[OpenQuestion]]` because the dependency-cycle and consistency cross-checks emit open questions alongside findings. I imported it from `requirements_to_tests.py` and treated it as a flat list:
+
+```python
+findings = review_requirements.apply_checks(reqs, ext)  # wrong: this is a tuple
+for f in findings:
+    findings_by_req.setdefault(f.req_id, []).append(f.dimension)
+```
+
+`AttributeError: 'list' object has no attribute 'req_id'`. Unpack:
+
+```python
+findings, _open_questions = review_requirements.apply_checks(reqs, ext)
+```
+
+The Python type annotation was correct from the start; the test failure pinpointed the misuse the moment the integration ran.
+
+## The `tc-test-idea/v1` schema contract
+
+Step 2.6 also landed Phase 2's most important architectural artifact: a versioned schema contract that downstream Phase 4 will consume.
+
+`/tc:requirements-to-tests` writes one seed file per reviewed requirement at `test-ideas/<REQ-ID>.md`. The seed begins with YAML frontmatter:
+
+```yaml
+---
+schema: tc-test-idea/v1
+requirement_id: REQ-001
+requirement_title: The system shall provide a robust and seamless...
+source: documents/uploaded/requirements.md
+status: seed
+ac_review_present: true
+phase_2_findings:
+  - ambiguity
+  - clarity
+  - edge-cases
+  - negative-cases
+candidates:
+  - id: REQ-001-happy-01
+    title: Happy path
+    type: positive
+    source: helper-derived
+  - id: REQ-001-edge-01
+    title: Edge case (define from product knowledge)
+    type: edge
+    source: helper-derived
+  - id: REQ-001-negative-01
+    title: Negative case (define from product knowledge)
+    type: negative
+    source: helper-derived
+generated_by: /tc:requirements-to-tests
+---
+```
+
+The per-command page (`commands/requirements-to-tests.md`) documents which keys Phase 4 must read unchanged and which it may modify. The `candidates` list is append-only from Phase 4's perspective; existing Step-2.6-authored entries are traceability anchors and must survive enrichment. The `schema` key is a version stamp — future schema revisions bump to `v2`, and Phase 4 reads `v1` files until migrated.
+
+The idempotency model for seeds is different from the model for every other Phase 2 artifact. Review files, inventory, coverage matrix, and traceability map are all byte-deterministic overwrite — the helpers regenerate them from upstream sources on every run. Seed files are **skip-not-overwrite** because Phase 4 (`tc-explore`) will enrich them with charters, sessions, and refined ideas. Overwriting would wipe Phase 4's work. Re-running `/tc:requirements-to-tests` against a workspace with existing seeds prints `created: 0, skipped: 17` and the file bytes are unchanged. The CLI's distinct `created` and `skipped` counters make the contract auditable at runtime.
+
+The lesson — *prefer skip-if-exists for artifacts that will be enriched downstream by users or later phases; prefer byte-deterministic overwrite for pure generated reports* — went into the lessons subsection alongside a note that mixing modes without flagging the choice in the helper's docstring surprises future contributors.
+
+## Per-Phase Convention №2: sub-step lesson capture
+
+Halfway through Phase 2, looking at the accumulating lessons across 2.1 through 2.4, the user named the implicit pattern: *"For Phase 2 so far, backfill any lessons learned, bugs, etc. into the plan for preventative care. Make a general rule to do this at the close of every phase sub-step going forward."*
+
+The implicit pattern became explicit:
+
+> **Sub-step lesson capture (preventative care).** At the close of every phase sub-step — after the helper / methodology / template / command page / SKILL.md updates land and the verify chain is clean — append any lessons learned, bugs found, or workarounds adopted to the phase's `### Phase N — Lessons learned (running)` subsection. A lesson is anything a future implementer of a similar sub-step would benefit from knowing: parser quirks, regex pitfalls, keyword-matching gotchas, fixture-contamination patterns, idempotency hazards, helper-mirroring wins. Each entry is one or two sentences, attributes the source sub-step, states the bug or pattern, and names the fix or mitigation. **If the sub-step closed cleanly with no surprises, record that explicitly** ("no lessons; mirrored Step X.Y structure" or "no bugs encountered") — silence is not evidence of cleanliness, an explicit "no lessons" line is. The lesson backfill happens in the same commit as the sub-step's CHANGELOG entry. Phase sign-off audits that every sub-step has a corresponding lesson entry.
+
+Two design choices in that paragraph matter.
+
+First — *silence is not evidence of cleanliness*. Step 2.3 closed with no bugs (`/tc:review-user-stories` was 9/9 GREEN on the first run). The convention required Step 2.3 to record that explicitly with the pattern that explains why — "the helper mirrored review_requirements.py and inherited its already-debugged skeleton." A "no lessons" line is more useful than absence, because absence is ambiguous (forgot to record? nothing happened? not yet captured?). The convention removes the ambiguity.
+
+Second — *same-commit backfill*. Lessons go into the plan in the same commit as the sub-step's CHANGELOG entry. They are versioned with the work that produced them, not appended in a separate cleanup commit days later. The sign-off audit pattern — `grep "##### Step 2.N — " planning/plan.md` per sub-step — catches violations before tag-push.
+
+By Phase 2 close the lessons subsection had nine entries covering 2.1 through 2.9. Future Phase 3 work will inherit the convention by default; the sign-off test asserts a lesson exists per sub-step.
+
+## Step 2.7: documentation pass, status-line drift
+
+Step 2.7 was the dedicated documentation step that closed the command surface. Its main deliverable was `docs/user-guide/reviewing-requirements.md` — the Phase 2 end-to-end walkthrough that mirrors `workflow.md`'s structure (what's available / prerequisites / per-step / what changed on disk / re-running / customizing / beyond / see also). Every example is reproducible against the seeded fixture; sample CLI output matches what the helpers actually print.
+
+The non-obvious work was status-line drift. Six different sentences across the repo claimed "Phase 2 starts next" or used forward-looking tense about features that had now shipped:
+
+- README.md status header
+- docs/install.md verifying-install paragraph
+- docs/user-guide/getting-started.md "what's next"
+- docs/user-guide/workflow.md "Beyond Phase 1" section
+- plugins/test-commander/README.md skill-status table
+- docs/user-guide/customizing-for-your-project.md ("When Phase 2 Step 2.2 ships, three rubric dimensions become extensible…")
+
+Each sentence sits in different surrounding prose. A single `sed` or `grep`+replace doesn't work. The lesson — *status-line drift across the repo is a 6-location checklist, not a search-and-replace; each location needs in-context editing* — went into the lessons subsection with the explicit checklist for future doc passes.
+
+The pure-docs nature of 2.7 was its own pattern. No code shipped. 154 tests stayed green. Link checker covered 107 files (up from 106 — one new doc plus inbound cross-links from README and the user-guide). The dedicated documentation step landing *after* every command ships is essentially a refactor: the walkthrough doc can be reproducible against actual smoke-test output because the helpers exist. Authoring it earlier would have meant fabricating examples.
+
+## Step 2.8: the DEFAULT_PHASE_CAP coupling
+
+Step 2.8 had two deliverables:
+
+1. Bump `DEFAULT_PHASE_CAP` in `scripts/verify_skills.py` from `1` to `2` so the verifier no longer treats `tc-requirements` as "UNEXPECTED — ahead of schedule" but as `PRESENT (phase 2)`.
+2. Author `tests/test_phase_2_integration.py` — one test, thirteen numbered assertion blocks driving all five helpers in sequence against the seeded fixture.
+
+The integration test landed GREEN on the first run. Every per-command unit test from 2.2 through 2.6 had already caught its class of bug at the unit level; the composition test was verification, not discovery. (A pattern worth carrying forward: *when every unit test is thorough, integration tests are stamp-of-approval, not bug-hunting.*)
+
+The cap bump was a different story.
+
+`tests/test_phase_1_signoff.py::test_verify_skills_default_phase_cap_is_1` had been authored at Phase 1 close. Its assertion read:
+
+```python
+def test_verify_skills_default_phase_cap_is_1():
+    text = VERIFY_SKILLS.read_text(encoding="utf-8")
+    assert re.search(r"DEFAULT_PHASE_CAP:\s*float\s*=\s*1\b", text), (
+        "expected DEFAULT_PHASE_CAP = 1 in scripts/verify_skills.py"
+    )
+```
+
+Exact-equals 1. Bumping to 2 broke it.
+
+The assertion captured the wrong invariant. What Phase 1 actually closed with was *"the cap was bumped from 0 to 1 or higher."* The strict equality was a momentary state — not the lasting truth Phase 1 wanted to lock in. The fix loosened the assertion to `>= 1` and renamed it for clarity:
+
+```python
+def test_verify_skills_default_phase_cap_at_least_1():
+    # Phase 1 close bumped DEFAULT_PHASE_CAP from 0 to 1. Subsequent phases
+    # bump it further (Phase 2 -> 2, etc.). This assertion guards the
+    # "Phase 1 closed properly" invariant; later phases may raise the cap.
+    text = VERIFY_SKILLS.read_text(encoding="utf-8")
+    match = re.search(r"DEFAULT_PHASE_CAP:\s*float\s*=\s*([0-9]+(?:\.[0-9]+)?)\b", text)
+    assert match, "DEFAULT_PHASE_CAP assignment not found"
+    cap = float(match.group(1))
+    assert cap >= 1, f"expected DEFAULT_PHASE_CAP >= 1, got {cap}"
+```
+
+The Phase 2 sign-off test (`tests/test_phase_2_signoff.py`) was written from the start with `>= 2` instead of `== 2`. The lesson — *every phase sign-off test that asserts a numeric cap, count, or version should assert `>=` (monotonically non-decreasing), not `==`. The invariant is "this phase landed and bumped the value to at least N", not "the value is exactly N forever"* — went into the lessons subsection and forward-applies to every future phase.
+
+A secondary observation worth keeping: `tests/test_verify_skills.py` passes `phase_cap=` explicitly in every test (`walk_skills(tmp_path, catalog, phase_cap=2)`) and was unaffected by the default bump. The pattern — *when a helper has a tunable default that future phases may bump, test it with explicit arguments per case rather than relying on the default* — is the right one. Default-coupling is a hidden dependency that breaks silently.
+
+After 2.8 the verifier output went from:
+
+```
+tc-core              PRESENT     (phase 1)
+tc-requirements      UNEXPECTED  (phase 2) - ahead of schedule
+verify_skills: OK (PRESENT=1 MISSING=0 MALFORMED=0 UNEXPECTED=1)
+```
+
+to:
+
+```
+tc-core              PRESENT     (phase 1)
+tc-requirements      PRESENT     (phase 2)
+verify_skills: OK (PRESENT=2 MISSING=0 MALFORMED=0 UNEXPECTED=0)
+```
+
+A clean `UNEXPECTED=0` is the visible signal that Phase 2's surface matches the verifier's expectations.
+
+## Step 2.9: test-first sign-off, working as designed
+
+Step 2.9 closed Phase 2 in six sub-sub-steps mirroring Phase 1's 1.8 pattern.
+
+The cold-user walkthrough (2.9.1) ran `make uninstall → make install` to reach a known-clean plugin state, created a tmp consuming project, copied the seeded fixture into `documents/uploaded/`, and invoked the five Phase 2 helpers in workflow order. Output matched `reviewing-requirements.md` verbatim — no fabricated examples in the doc, no drift between the doc's claims and the helpers' behavior. The captured log went to `/tmp/tc-phase2-walkthrough.log`.
+
+The per-step DoD audit (2.9.2) confirmed every Step 2.1–2.8 deliverable on disk, every lesson entry present in the plan's Phase 2 Lessons learned subsection, and zero deferral-wording hits in the SKILL.md grep.
+
+The interesting part was 2.9.5: the sign-off test.
+
+`tests/test_phase_2_signoff.py` was authored *before* the plan and CHANGELOG closing edits, with seventeen assertions covering every closing condition: all eight Phase 2 test files exist, all five helpers, all five command pages, all three methodology docs, all four templates, fixture intact, `CATALOG["tc-requirements"] == 2`, `DEFAULT_PHASE_CAP >= 2`, SKILL.md describes all five commands with no deferral wording, CHANGELOG Phase 2 marked complete with a date, plan.md Completed section has a Phase 2 entry, plan.md To Do Phase 2 collapsed to the marker line "Phase 2 complete (YYYY-MM-DD) — see Completed", customization guide carries the `tc-requirements:` YAML block with ≥ 3 worked examples, lessons-learned subsection has an entry for every Step 2.1–2.8, total pytest count ≥ 140.
+
+First run: **14 passed, 3 failed.** The three failures were exactly:
+
+- `test_changelog_phase_2_marked_complete` — CHANGELOG heading still said `(in progress)`
+- `test_plan_completed_has_phase_2_entry` — plan's `## Completed` section was empty for Phase 2
+- `test_plan_todo_phase_2_collapsed_to_marker` — plan's `### Phase 2` To Do section still had nine `- [ ] Step 2.N` lines
+
+Each failure described the closing action it required. Anyone reading the red output understands what needs to land. The plan/CHANGELOG closing edits in 2.9.3 flipped exactly those three states, and the next run was 17/17 GREEN. Test-first sign-off worked exactly as designed.
+
+The test-count assertion (`>= 140`) became `172 passed` at sign-off close — the suite picked up 17 tests from the sign-off file itself. The closing summary I initially wrote ("156-test suite green") was wrong by 16; the lesson — *never write the closing test count by hand; capture it from the actual `make verify` output* — went into the Step 2.9 lessons entry as a small operational correction.
+
+The annotated `phase-2` tag pushed last. `git ls-remote origin phase-2` resolves. Phase 2 closed.
+
+## A `/tc:next` interaction worth flagging
+
+One observation from the cold-user walkthrough is worth surfacing because it has implications for Phase 3 and beyond.
+
+After the five-helper chain completes, `/tc:next` no longer recommends `/tc:review-requirements` (good — Phase 2 is done). But it also doesn't recommend `/tc:learn-from-docs` (Phase 3, the natural next step in the documented workflow). It recommends `/tc:automation-plan` (Phase 6).
+
+The reason is in the R-rule structure. The `/tc:next` engine has ten heuristics (R1–R10), each tied to a phase. R4 fires when phase 3 is `not_started`. R5 fires when phase 4 is `not_started`. R6 fires when phase 5 is `not_started`. R7 fires when phase 6 is `not_started`.
+
+Phase 2's chain writes:
+
+- The five `requirements/*.md` files → Phase 2 in_progress.
+- The 17 seed test-idea files under `test-ideas/` → which is **owned by Phase 4** in the PHASE_OWNERSHIP map. Phase 4 flips to in_progress.
+- `traceability/requirements-map.md` → which is **owned by Phase 5**. Phase 5 flips to in_progress.
+
+After Phase 2 closes, phases 1, 2, 4, and 5 are all in_progress (phase 3 is not_started — Phase 3's `tc-knowledge` hasn't run). R3 (phase 2) skips because phase 2 is in_progress. R4 (phase 3) fires correctly… *unless* the user has uploaded their requirements documents to `documents/uploaded/`, in which case Phase 3's directory has content and Phase 3 also flips to in_progress. Then R4 skips, R5 (phase 4) skips, R6 (phase 5) skips, and R7 (phase 6) fires — `/tc:automation-plan`.
+
+The integration test in 2.8 asserts the *robust* invariant — "the next recommendation is not `/tc:review-requirements`" — rather than the specific next command. That's the correct thing to assert because the specific recommendation depends on which downstream phases happened to get content written to them.
+
+But the underlying issue is real. Some phase ownership is shared (Phase 2 writes to a Phase 4 directory; Phase 2's coverage writes to a Phase 5 directory). The current heuristic treats "has any content" as equivalent to "has been worked on," which conflates Phase-2-bootstrapping with Phase-4-doing-its-real-work. The R-rules will need refinement when Phase 3 ships — likely the cleanest fix is per-command-source provenance in the artifact (a frontmatter `generated_by: /tc:requirements-to-tests` is enough to distinguish a Phase 2 seed from a Phase 4 enrichment). I flagged the issue in Step 2.9's lessons entry as a known follow-up for the Phase 3 author.
+
+## Patterns settled
+
+Phase 2 settled into a few patterns that are now stable across the project:
+
+**Universal-core defaults with config.yaml extension hooks.** D19 plus the customization-guide audit convention make domain extensibility a first-class part of every future skill. The pattern is: ship a minimal universal core, expose extension keys in the workspace's `config.yaml`, union them at runtime, document the extension hook in `customizing-for-your-project.md` with at least one worked example. Every future skill that has rubrics, keyword sets, tag taxonomies, or policy templates inherits this discipline.
+
+**Schema contracts across phase boundaries.** `tc-test-idea/v1` is the model. A skill that writes artifacts a downstream phase will consume must publish a versioned schema, document which keys the downstream phase may modify versus must preserve, and version-stamp every emitted file. Phase 4 reads `v1` files without parsing the body; the YAML frontmatter is the contract. Future cross-phase artifacts (Phase 5's BDD scenarios, Phase 7's quality-report sections) will follow the same shape.
+
+**Skip-not-overwrite for downstream-enriched artifacts.** Pure generated reports overwrite byte-deterministically. Artifacts that will be enriched downstream by users or later phases must be skip-if-exists. The CLI surfaces `created` and `skipped` counts so the contract is auditable at runtime. The helper's docstring states the chosen idempotency mode explicitly.
+
+**Sub-step lesson capture with explicit silence.** Every sub-step appends to the phase's Lessons learned subsection before commit. Sub-steps that closed cleanly record that explicitly. Phase sign-off audits coverage. Future implementers can grep `##### Step` and find every known landmine before stepping on it.
+
+**Test-first sign-off with `>=` invariants.** Sign-off tests are written before the closing plan/CHANGELOG edits; their failures describe the closing actions. Numeric invariants assert monotonically non-decreasing values (`cap >= 1`, `pytest count >= 140`), not exact equality. Phase N+1 bumping a value that Phase N closed cannot break Phase N's sign-off test.
+
+**Cold-user walkthrough as the integration safety net.** The cold-user walkthrough catches the kind of drift unit tests miss — "the docs claim the helper does X, and that's actually what happens." Complementary to unit tests, not redundant. Phase 1 had a similar walkthrough; Phase 2's caught zero drift, which is a result worth recording.
+
+**Helper structure mirroring as bug reduction.** When five helpers share roughly 70% of their structure, mirroring the closest sibling concentrates new bugs in new mechanical checks. Step 2.3 was 9/9 GREEN on first run because it inherited Step 2.2's already-debugged parser. The skeleton is a debugged artifact; treat it as such.
+
+## What Phase 2 ships, materially
+
+Two skills now have shipped commands.
+
+`tc-core` (Phase 1): `/tc:init`, `/tc:status`, `/tc:journal`, `/tc:next`.
+
+`tc-requirements` (Phase 2): `/tc:review-requirements`, `/tc:review-user-stories`, `/tc:review-acceptance-criteria`, `/tc:requirements-coverage`, `/tc:requirements-to-tests`.
+
+The verifier reports both `PRESENT`, the suite is at 172 tests, the link checker covers 107 files, the customization guide carries the schema and three worked extension examples (e-commerce, healthcare, research-data-platform), and the `phase-2` annotated tag is on origin.
+
+A user who has run `make install` can now drop their requirements documents into `.test-commander/documents/uploaded/`, run the five Phase 2 helpers in workflow order, and get a 16-dimension requirements review, an INVEST user-story review, an AC-rubric acceptance-criteria review with orphan detection, a coverage matrix tied to a traceability map, and a `tc-test-idea/v1` seed file per requirement that Phase 4 will enrich. The mechanical checks ship universal English vocabulary; PCI, HIPAA, and project-specific role taxonomies are opt-in through `config.yaml`.
+
+The Phase 2 day produced a working five-command skill, two new Per-Phase Conventions, a 18-decision-deep plan, and a discipline for staying generic by default. The bookstore mistake from Step 2.1 is now a discipline — D19 — that every future phase inherits. The user's question (*"are these left over from the Juice Shop project?"*) is the kind of correction worth memorializing in the plan, because the answer was "no, but the reflex that produced them is universal across every implementer who sketches a fixture, and the discipline to catch the reflex is exactly the deliverable Test Commander is supposed to embody."
+
+Phase 3 starts next: project-knowledge ingestion. `/tc:learn-from-docs`, `/tc:learn-from-specs`, `/tc:learn-from-code`, `/tc:learn-from-api`, `/tc:learn-from-tests`. Same plan-driven cadence. Same TDD discipline. Same lesson-capture rhythm. The `phase-3` tag is the next anchor.
