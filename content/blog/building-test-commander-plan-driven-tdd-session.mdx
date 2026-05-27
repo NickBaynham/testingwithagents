@@ -1,0 +1,137 @@
+---
+title: "Building Test Commander in one session: plan-driven phasing, TDD, and what 'done' really means"
+slug: "building-test-commander-plan-driven-tdd-session"
+excerpt: "A single-day session building Test Commander from a rough product idea through two shipped phases. Plan-driven phasing with eight sub-steps each, test-driven development with a strict red-green-command-verify micro-cycle, a logical-consistency audit that caught real drift, and an honest postmortem when the user asked 'what functionality exists now?' and the answer was 'less than the sign-off suggested.'"
+publishedAt: "2026-05-26"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+  - "Project Logs"
+tags:
+  - "agents"
+  - "claude-code"
+  - "plugin-development"
+  - "tdd"
+  - "phased-delivery"
+  - "test-commander"
+  - "session-walkthrough"
+---
+
+Test Commander is the working name for an AI-assisted testing system and quality intelligence center. The pitch is to turn requirements, exploration, BDD, automation, evidence, reporting, and continuous learning into one visible workflow — not a code generator, but a quality engineering collaborator that keeps the evidence trail intact.
+
+This post is the walkthrough of a single session in which we took that pitch from a rough product idea to two shipped phases — a Phase 0 repository foundation and a Phase 1 workspace plus four core commands — and then caught a real gap during the close-out audit that quietly invalidated part of the Phase 1 sign-off. The session is worth writing up because it exercises the discipline the project is supposed to embody: plan-driven phasing, test-driven development with a strict micro-cycle, logical consistency as a working practice, and an honest definition of "done."
+
+## The plan came first
+
+The session opened with the user pasting in a long, rough vision document and asking for a phased plan. The output was `planning/plan.md` — a living document with explicit Decisions, Open Questions, per-phase sub-step outlines, Per-Phase Conventions, and To Do / Completed tracking. The whole rest of the day operated against that file.
+
+Most of the value the plan produced was in the iteration before any code shipped. The first draft had Test Commander "wrapping" community skills (`exploratory-to-bdd`, `agentic-playwright-automation`, etc.). After a round of back-and-forth on compatibility risk, that flipped to vendor-and-own (Decision D1): every skill Test Commander ships is authored in-repo, with community skills serving as design references only. D1 made the plan stricter, the dependency story honest, and the eventual implementation portable.
+
+Other decisions surfaced the same way. Decision D12 emerged after we inspected the Claude Code plugin structure on disk — the plan's original "umbrella SKILL.md plus sub-skills" model was wrong; the canonical layout is a marketplace at the repo root plus a plugin under `plugins/<name>/` with sibling skills under `skills/<skill-name>/`. D17 ("plan steps use the `claude` CLI, never interactive slash commands") came after a slash-command attempt during Phase 0 returned "isn't available in this environment" and the `claude plugin marketplace add` CLI worked first try. D18 ("user-facing helpers and templates ship inside the plugin") came mid-Phase-1 when we verified the installed plugin cache only contains `plugins/test-commander/` contents — repo-root `scripts/` and `templates/` don't travel.
+
+Every one of those decisions was discovered before code. That is the value of a written plan: a place for the rough idea to argue with itself.
+
+## Phase 0: foundation in nine small steps
+
+Phase 0's job was to make Phase 0+ possible. Nine sub-steps, each a single commit, each independently verifiable:
+
+1. Repository metadata — LICENSE (MIT), README, CONTRIBUTING, CHANGELOG, TODO.
+2. Documentation skeleton — `docs/vision.md`, `docs/architecture.md`, install guide, getting-started, plus a small Markdown link checker.
+3. Python project foundation — `pyproject.toml` (PDM, Python 3.12+), `Makefile` with six targets, `docker-compose.yml` placeholder, `.gitignore`.
+4. `bootstrap.sh` — POSIX shell, platform detection (macOS / Linux / WSL / Git Bash), prereq verification (`git`, `make`, Python 3.12, PDM, Docker), safe-only auto-install. Explicit no-PowerShell support.
+5. Plugin scaffold — `.claude-plugin/marketplace.json`, `plugins/test-commander/.claude-plugin/plugin.json`, plugin README and LICENSE, the first `tc-core/SKILL.md`. Pre-flight tests landed red, then green.
+6. Skill verifier — `scripts/verify_skills.py` walks `plugins/test-commander/skills/<name>/SKILL.md`, parses YAML frontmatter, classifies each skill as PRESENT / MISSING / MALFORMED / UNEXPECTED, supports `--phase N` to limit the expected set.
+7. `make install` wiring — five-target idempotent chain (`pdm-install` → `validate-manifests` → `marketplace-add` → `plugin-install` → `verify-skills`), plus a `make uninstall` to reverse cleanly. Each registration step guards against duplicates by checking `claude plugin list` first.
+8. Public-skill evaluation pass — a brief research note (`docs/skill-evaluation.md`) covering Mermaid, devbox/sandbox, traceability-matrix, accessibility, and performance candidates. All five decisions: pass. The plan's vendor-and-own discipline held.
+9. Sign-off — cold-user walkthrough of `getting-started.md`, per-step DoD audit, plan and CHANGELOG updates marking Phase 0 complete, a `tests/test_phase_0_signoff.py` pre-flight assertion test, and an annotated `phase-0` git tag pushed to origin.
+
+Two things stand out about Phase 0. First, the install pipeline ended up driven by the `claude` CLI rather than slash commands, which made it scriptable and CI-friendly from day one (Decision D17). Second, the public-skill evaluation came back with "no clear match in any of the five categories," which validated D1 retroactively — there genuinely was no community skill to wrap.
+
+## Phase 1: workspace, four commands, TDD throughout
+
+Phase 1 introduced the `.test-commander/` workspace and the first four orchestration commands: `/tc:init`, `/tc:status`, `/tc:journal`, `/tc:next`. The plan was eight sub-steps, with a strict test-driven micro-cycle:
+
+```
+write tests (red)
+  -> implement helper (green)
+    -> author SKILL.md command file
+      -> verify (pytest + make verify)
+```
+
+Sub-step 1.1 was the workspace template — `plugins/test-commander/templates/workspace/` mirroring the canonical `.test-commander/` layout from the plan. 35 directories, 33 named files, per-directory README placeholders so every empty-by-design directory was reachable through git. Every Markdown starter got an H1 heading and a "Populated by `/tc:command` (Phase N)" note. The seven structural tests landed red against the empty template, then green after a single Python generator pass.
+
+Sub-step 1.2 (`/tc:init`) is where Decision D18 surfaced. The plan had located the helper at `scripts/init_workspace.py`. Mid-step we checked `~/.claude/plugins/cache/test-commander-marketplace/test-commander/0.0.0/` and discovered only `plugins/test-commander/` contents travel into the installed plugin cache — repo-root `scripts/` and `templates/` do not. A helper at `scripts/init_workspace.py` would be unreachable when a consuming-project user invoked `/tc:init` from their installed plugin. We paused, surfaced the architectural question, the user picked Option A (bundle inside the plugin), and we used `git mv` to relocate the template into `plugins/test-commander/templates/workspace/` while preserving history. The helper landed at `plugins/test-commander/scripts/init_workspace.py` and resolved its bundled template via `Path(__file__).resolve().parent.parent / "templates" / "workspace"` — a pattern that works identically from the dev checkout and the installed plugin cache. D18 and its sub-bullet got committed to the plan in the same change.
+
+Sub-steps 1.3 through 1.5 built the rest of the command surface:
+
+- `/tc:status` introduced a typed `WorkspaceSnapshot` dataclass — `workspace`, `exists`, `initialized`, `last_modified`, `counts`, `populated`, `phase_status` — that became the shared contract between `/tc:status` and `/tc:next`. "Populated" was defined as "bytes differ from the bundled template," with orphan workspace files counting as populated. Phase status (`not_started` / `in_progress`) followed a `PHASE_OWNERSHIP` map. Read-only by design.
+
+- `/tc:journal` settled on a one-file-per-day format at `journal/YYYY-MM-DD.md` — H1 date header, H2 timestamp section per entry, body verbatim. Append rejects empty bodies and bodies containing an H2 timestamp heading (which would corrupt parsing). Summarize is read-only with inclusive `--from`/`--to` date filtering. AI-generated summaries were explicitly out of scope, deferred to the Phase 8 learning loop.
+
+- `/tc:next` is the most interesting of the four. A methodology document at `tc-core/methodology/next-step-inference.md` declared ten R-rules with trigger, recommendation, rationale, and priority. The engine reads the `WorkspaceSnapshot`, evaluates every rule, returns matching `Recommendation(command, explanation, phase, priority)` records sorted by priority ascending, and formats them as a `next: <command>  (Phase N)` line followed by `followups:` for downstream gaps. The top match is the actionable next step; the followups give the user the trail ahead.
+
+Sub-step 1.6 was the documentation pass: `docs/workspace-reference.md` filled in with per-directory purpose and owning-phase notes; `docs/command-reference.md` rewritten as an index linking the per-command pages inside the plugin (single source of truth for both Claude at runtime and users at read-time); a new `docs/user-guide/workflow.md` walked the four commands end to end with realistic sample output captured from the prior smoke runs.
+
+Sub-step 1.7 bumped `scripts/verify_skills.py` `CATALOG["tc-core"]` and `DEFAULT_PHASE_CAP` from 0 to 1, and added `tests/test_phase_1_integration.py` — a single integration smoke that drives all four helpers in sequence against a fresh tmp consuming project. Init creates 63 files. Re-init is a clean no-op (0 created, 63 skipped). Status shows everything `not_started`. `/tc:next` recommends R2 (manual customize project metadata). The user edits `project.md`. Status now shows phase 1 in_progress. `/tc:next` flips to R3 (`/tc:review-requirements`) with six followups. Two journal appends land in the same day file. Summarize returns both chronologically. Composition tested where unit tests would have missed it.
+
+Sub-step 1.8 was sign-off: cold-user walkthrough from clean state (`make uninstall` → `make install` → tmp project → all four helpers), per-step DoD audit, plan and CHANGELOG updates, `tests/test_phase_1_signoff.py` as the test-first close gate, annotated `phase-1` tag.
+
+We pushed the tag. Phase 1 was "done." Then the user asked a question that wasn't on the audit.
+
+## The SKILL.md gap
+
+"What functionality exists for the user now that Phase 1 has been deployed?"
+
+The honest answer turned out to be: less than the sign-off suggested.
+
+The four helpers worked perfectly via direct CLI invocation — every test green, every smoke run clean, the integration test exercising the full workflow. But `plugins/test-commander/skills/tc-core/SKILL.md` was still the Phase 0 scaffold. It said:
+
+- "Behavior arrives in Phase 1" for `/tc:init`, `/tc:status`, `/tc:journal`
+- "Coming in Phase 1" for `/tc:next`
+- "No commands are implemented yet"
+
+We had shipped the helpers and the per-command pages but never updated the SKILL.md that Claude actually reads when a slash command fires. The CLI experience worked. The in-Claude-Code experience was broken — Claude reads the SKILL.md, sees deferral wording, and routes the user away from the implementation. The per-step DoD audit hadn't caught it because the audit checked file presence and pytest results, not "what does Claude actually do when the user types `/tc:init`?"
+
+This is the kind of gap that the project's discipline is supposed to make impossible. The honest move was to fix the gap, but also to fix the process so the gap cannot recur silently. We did both, in this order:
+
+1. **Plan backfill (forward-looking).** Added a new Per-Phase Convention to `planning/plan.md`: "SKILL.md surfaces shipped behavior. Each command sub-step that ships a helper + per-command page must, in the same sub-step, update the owning SKILL.md to (a) describe the now-shipped behavior in a brief paragraph and (b) instruct Claude to invoke the bundled helper, with a link to the per-command page for the full spec. Stale 'behavior arrives in Phase N+1' wording for a shipped command is a per-step DoD failure."
+
+2. **Plan backfill (retroactive Phase 1 alignment).** Updated sub-steps 1.2 through 1.5 to list a `SKILL.md update` deliverable. Extended Step 1.6 to include a "Final SKILL.md pass." Added a new check (8a) to the Phase 1 13-check DoD table. Updated Step 1.8.2's audit checklist to include SKILL.md currency. Updated the Step 1.6 line in the plan's Completed entry to mention the SKILL.md rewrite as if it had been part of the documentation pass all along.
+
+3. **Actual SKILL.md rewrite.** Frontmatter description rewritten to cover all four commands. Body describes each command with the helper invocation pattern (`python3 <plugin-root>/scripts/<name>.py <project-root>`) and links to the per-command page for the full spec. A "Finding the helpers" section tells Claude how to resolve `<plugin-root>` from the SKILL.md's own location for both dev checkout and installed plugin cache. A "What to do when a slash command fires" section makes the runtime contract explicit. All deferral wording removed.
+
+4. **Sign-off test extension.** Added `test_tc_core_skill_md_describes_shipped_phase_1_commands` to `tests/test_phase_1_signoff.py`. Asserts all four `/tc:*` commands are named in the SKILL.md, no `Behavior arrives in Phase 1` / `Coming in Phase 1` / `No commands are implemented yet` wording, and all four bundled helpers (`init_workspace.py`, `workspace_state.py`, `journal.py`, `next_step.py`) are referenced by name.
+
+5. **CHANGELOG alignment.** The Phase 1 closing summary and the Step 1.6 CHANGELOG entry both updated to mention the SKILL.md rewrite. Test count bumped from 84 to 96. The intent was that the CHANGELOG should read as if this all happened during Phase 1.
+
+6. **Re-tag.** Deleted the original `phase-1` tag (locally and on origin), recreated it pointing at the SKILL.md commit, pushed. Phase 1's tag now genuinely points at a state where the user experience matches the sign-off claim.
+
+Before we touched anything, the failure mode in plan Step 1.8 explicitly said: "Never force-overwrite an existing tag on origin without explicit user confirmation." The user gave that confirmation in the same turn that asked for the backfill, and the spirit of the request was that Phase 1 be truly complete — not "complete with a follow-up commit on top." The re-tag is consistent with that spirit.
+
+## Patterns worth carrying forward
+
+A few things this session settled into stable patterns:
+
+**Plan-driven phasing with sub-step DoD tables.** Each sub-step has its own Definition of Done — typically four to seven bullets — and the phase as a whole has a consolidated DoD table with automated and evidence-based checks. The sign-off test enforces the table. The plan-as-source-of-truth means changes in scope or architecture get committed to the plan first, then implemented.
+
+**The test-first micro-cycle for each command.** Write the tests that define the helper's behavior. Watch them go red. Implement the helper. Watch them go green. Author the per-command page. Run `make verify`. No implementation before its tests. No tests added after the fact. Eight Phase 1 sub-steps followed this without exception.
+
+**Per-command page as single source of truth.** The page at `plugins/test-commander/skills/<skill>/commands/<command>.md` is what Claude reads at runtime and what users read for reference. Its sections are fixed: Inputs, Outputs, Preconditions, Behavior, Safety, Implementation, Definition of Done, See also. `docs/command-reference.md` indexes — it does not duplicate.
+
+**SKILL.md as the runtime entry point.** The skill's SKILL.md is what Claude resolves when a slash command fires; it describes the behavior at the right level for runtime routing and links to the per-command pages for detail. Per the new Per-Phase Convention, updating SKILL.md is part of every command sub-step's DoD. The Phase 1 sign-off test asserts no shipped command carries deferral wording.
+
+**Helpers and templates ship inside the plugin (D18).** The plugin cache only contains `plugins/test-commander/` contents. Anything a user-facing command needs at runtime — helpers, templates, methodology docs — has to live there. Dev tooling (`scripts/verify_skills.py`, `scripts/check_links.py`) stays at the repo root because it's a developer concern, not a runtime concern.
+
+**Logical consistency as a working practice.** Late in Phase 1 we ran the `logic-check` skill over the entire `planning/plan.md` and got back a structured report with eight findings (three High, three Medium, two Low). Most were stale wording from earlier drafts that had been superseded by later decisions: D1's path drift in three places, D7's capstone list missing 10.5, an "unbounded" default phase cap that contradicted both the drill expectations and the Phase 1 bump operation. We fixed all eight in a single consistency-pass commit. The audit is cheap and catches the class of drift that builds up across long planning sessions.
+
+**The sign-off test as the close-out gate.** Every phase ends with a `tests/test_phase_N_signoff.py` that asserts the plan and CHANGELOG markers are in place, the expected artifacts are on disk, the verifier's phase cap is bumped, and (now) the SKILL.md is current. Test-first applies here too: the sign-off test lands red before the plan/CHANGELOG edits and turns green after. The discipline forces the close to be deliberate, not vibes-based.
+
+## What "done" really means
+
+The SKILL.md gap is the punchline of the day. We had a passing pytest suite, a green link checker, a clean verifier report, an installed plugin showing up in `claude plugin list`, an annotated tag on origin, and a sign-off ceremony complete with a captured walkthrough log. By every test we'd written, Phase 1 was done. And it wasn't, because we hadn't written the test that mattered: the one that asserts the user's actual entry point describes the user's actual capabilities.
+
+The fix wasn't the SKILL.md rewrite. The fix was admitting that "done" meant something broader than the audit had checked for, then teaching the plan, the conventions, and the sign-off test to enforce the broader definition for every future phase. Phase 2 (requirements review, the first ground-up `tc-*` skill that isn't `tc-core`) inherits the new convention by default. The class of gap that bit us cannot recur silently.
+
+That is what we mean by quality engineering as collaboration with an AI rather than code generation: the discipline is the deliverable. Every helper, every command file, every per-step DoD, every consistency audit, every backfill is an act of saying out loud what "done" requires. The session ends with two phases that genuinely ship, a plan that is self-healing when reality and documentation diverge, and a postmortem written into the project so the lesson outlasts the day.
+
+Phase 2 next.
