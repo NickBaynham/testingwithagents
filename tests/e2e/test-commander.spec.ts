@@ -26,14 +26,16 @@ test.describe("/test-commander", () => {
     }
 
     // The seven terminal commands all appear, exactly as documented.
+    // Phase 0-4 shipped surface: install pair (./bootstrap.sh + make install)
+    // plus five /tc:* commands spanning all four shipped skills.
     for (const cmd of [
-      "make setup",
-      "make app-up",
-      "make explore-ui",
-      "make generate-bdd",
-      "make generate-tests",
-      "make test-ui",
-      "make report-quality",
+      "./bootstrap.sh",
+      "make install",
+      "/tc:init",
+      "/tc:status",
+      "/tc:journal append",
+      "/tc:next",
+      "/tc:review-requirements",
     ]) {
       await expect(page.getByText(cmd, { exact: true }).first()).toBeVisible();
     }

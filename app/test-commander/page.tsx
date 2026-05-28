@@ -7,7 +7,7 @@ import { breadcrumbListJsonLd, type JsonLdObject } from "@/lib/seo/structured-da
 import { site } from "@/lib/site-config";
 
 const description =
-  "Test Commander is a human-guided agentic testing workflow that helps testers explore web applications, generate BDD specs, create Playwright automation, run tests in CI/CD, and produce quality reports.";
+  "Test Commander is a Claude Code plugin plus a small Python runtime that turns a project's requirements, source, specs, recorded API traffic, and exploratory recordings into one committed workspace of structured quality artifacts. Phases 0 through 4 are shipped: workspace orchestration, requirements quality review, project knowledge ingestion, and charter-based exploratory testing. Twelve /tc:* commands across four skills.";
 
 export const metadata: Metadata = {
   title: "Test Commander",
@@ -86,7 +86,12 @@ function Terminal({
         </span>
         <span className="font-mono text-xs text-[var(--color-text-subtle)]">{label}</span>
       </div>
-      <pre className="overflow-x-auto p-4 font-mono text-sm leading-relaxed text-[var(--color-text)]">
+      <pre
+        tabIndex={0}
+        role="region"
+        aria-label={`Terminal output: ${label}`}
+        className="overflow-x-auto p-4 font-mono text-sm leading-relaxed text-[var(--color-text)] focus:outline focus:outline-2 focus:outline-[var(--color-accent)]"
+      >
         <code>{children}</code>
       </pre>
     </div>
@@ -112,117 +117,245 @@ function Chevron() {
 
 /* ---------- content models ---------- */
 
-const heroCommands = `$ make app-up
-$ make explore-ui
-$ make generate-bdd
-$ make generate-tests
-$ make test-ui
-$ make report-quality`;
+const heroCommands = `$ ./bootstrap.sh && make install
+$ /tc:init
+$ /tc:review-requirements
+$ /tc:learn-from-docs
+$ /tc:create-charter --target "Sign-in flow"
+$ /tc:explore --charter CH-001
+$ /tc:session-summary --session SESS-20260528-600
+$ /tc:test-ideas --session SESS-20260528-600`;
 
-const workflowSteps: readonly { label: string; hint: string; body: ReactNode }[] = [
+const workflowSteps: readonly {
+  label: string;
+  hint: string;
+  status: "shipped" | "in-development" | "planned";
+  body: ReactNode;
+}[] = [
   {
     label: "Explore",
-    hint: "Walk the UI with the tester in the lead.",
+    hint: "Charter-based sessions with structured anomaly capture.",
+    status: "shipped",
     body: (
       <>
-        The agent explores the UI with guidance from the tester. It identifies pages, navigation
-        paths, forms, validation behavior, likely defect surfaces, test data needs, and stable
-        locators. The output is a structured exploration report.
+        Phase 4 (shipped 2026-05-28). <code>/tc:create-charter</code> scopes a session against the
+        project knowledge; <code>/tc:explore</code> classifies every recorded Playwright event into
+        six universal observation types and six universal anomaly categories with a Charter-Coverage
+        matrix; an internal exploration-review sub-mode routes gap signals to{" "}
+        <code>requirements/open-questions.md</code>.
       </>
     ),
   },
   {
     label: "Model",
-    hint: "Organize findings into a lightweight app model.",
+    hint: "Ingest documents, specs, code, recordings, tests.",
+    status: "shipped",
     body: (
       <>
-        Findings consolidate into a page inventory, user-flow map, page-object candidates, locator
-        inventory, risk areas, and test-data requirements. The team finishes with a clearer picture
-        of what the application actually does.
+        Phase 3 (shipped 2026-05-27). Five <code>/tc:learn-from-*</code> commands extract entities,
+        terms, journeys, endpoints, modules, recorded responses, and test coverage into ten
+        structured product-knowledge artifacts under <code>.test-commander/product-knowledge/</code>{" "}
+        with full <code>path:line</code> provenance. A shared synthesizer rebuilds{" "}
+        <code>system-model.md</code> byte-deterministically at the end of every run.
       </>
     ),
   },
   {
     label: "Specify",
-    hint: "Turn observations into BDD scenarios.",
+    hint: "Reviewed requirements; BDD generation next.",
+    status: "in-development",
     body: (
       <>
-        The agent drafts BDD-style feature files from the exploration output. Specs are readable to
-        manual testers, business analysts, automation engineers, and product owners, so review is a
-        conversation rather than a translation exercise.
+        Phase 2 (shipped 2026-05-27) ships the requirements layer:{" "}
+        <code>/tc:review-requirements</code>, <code>/tc:review-user-stories</code>,{" "}
+        <code>/tc:review-acceptance-criteria</code>, plus <code>/tc:requirements-to-tests</code> for
+        seeded <code>tc-test-idea/v1</code> files Phase 4 enriches with session-derived candidates.
+        Phase 5 (BDD generation + traceability) is the next milestone.
       </>
     ),
   },
   {
     label: "Automate",
-    hint: "Convert approved specs into Playwright tests.",
+    hint: "Playwright framework lazily scaffolded.",
+    status: "planned",
     body: (
       <>
-        Approved BDD scenarios become deterministic Playwright tests. Stable locators, page objects,
-        fixtures, clear assertions, and tags like <code>@smoke</code>, <code>@regression</code>, and{" "}
-        <code>@negative</code>. The goal is maintainable automation, not random clicking.
+        Phase 6. <code>/tc:build-framework</code> will lazily scaffold a Playwright + TypeScript
+        framework; <code>/tc:automation-plan</code> and <code>/tc:automate</code> will score
+        automation candidates against the enriched test-ideas, generate page objects + fixtures, and
+        keep test data in <code>.test-commander/test-data/</code> rather than inline in code.
+        Approved BDD scenarios become deterministic Playwright tests.
       </>
     ),
   },
   {
     label: "Execute",
-    hint: "Run locally or in CI/CD.",
+    hint: "Local + CI runs with evidence captured per run.",
+    status: "planned",
     body: (
       <>
-        Tests run from the terminal locally and from the same scripts in CI/CD. The tester never has
-        to leave the workflow to inspect, re-run, or triage results.
+        Phase 7. <code>/tc:run</code> orchestrates suite execution; per-run records land in{" "}
+        <code>.test-commander/runs/</code>; screenshots, traces, and logs route to{" "}
+        <code>.test-commander/evidence/</code> with the policy defined in <code>config.yaml</code>.
+        The same workflow runs locally and in CI.
       </>
     ),
   },
   {
     label: "Report",
-    hint: "Produce quality evidence, not opinions.",
+    hint: "Quality report with history; release-readiness scoring.",
+    status: "planned",
     body: (
       <>
-        A quality report summarizes exploration findings, BDD coverage, test results, defects, and
-        historical trends. Facts, interpretation, and human-review items stay clearly separated.
+        Phase 7. <code>/tc:report</code> writes{" "}
+        <code>.test-commander/quality-report/current-quality-report.md</code> and snapshots a copy
+        to <code>history/YYYY-MM-DD-HHmm.md</code>. <code>/tc:quality-gate</code> evaluates
+        release-readiness against project-defined thresholds. Facts, interpretation, and
+        human-review items stay clearly separated.
       </>
     ),
   },
   {
     label: "Improve",
-    hint: "Feed insights back into the next exploration.",
+    hint: "Governed lessons; nothing promoted silently.",
+    status: "planned",
     body: (
       <>
-        Risks, gaps, and review notes become the seed of the next exploration cycle. The system is
-        designed so that quality knowledge compounds with each iteration.
+        Phase 8. <code>/tc:learn</code>, <code>/tc:learn-from-failures</code>,{" "}
+        <code>/tc:learn-from-exploration</code>, <code>/tc:review-lessons</code>, and{" "}
+        <code>/tc:promote-lessons</code> turn the workspace into a learning loop. Every promotion is
+        visible in <code>git diff</code> — Test Commander never silently rewrites methodology.
       </>
     ),
   },
 ];
 
 const phaseIIncludes = [
-  "UI exploration and flow discovery",
-  "Locator discovery and page-object modeling",
-  "BDD specification generation",
-  "Playwright UI test generation",
-  "Local and CI/CD test execution",
-  "Quality reporting",
-  "Blog posts and courseware",
+  "Phase 0 — Repository foundation, plugin scaffold, marketplace registration",
+  "Phase 1 — Workspace and artifact model (/tc:init, /tc:status, /tc:journal, /tc:next)",
+  "Phase 2 — Requirements quality (16-dimension rubric, INVEST review, acceptance-criteria review, coverage map, seeded test-ideas)",
+  "Phase 3 — Project knowledge ingestion (five /tc:learn-from-* helpers, shared synthesizer, ten product-knowledge artifacts)",
+  "Phase 4 — Charter-based exploratory testing (charters, recorded-session replay, session summaries, Phase-2 seed enrichment)",
+  "All commands idempotent and byte-deterministic; workspace committed to git",
 ];
 
 const phaseIDefers = [
-  "API testing",
-  "Database validation",
-  "Performance testing",
-  "Full security testing",
-  "Jira integration",
-  "Production monitoring",
+  "Phase 5 — BDD generation and traceability maps (in development; starts next)",
+  "Phase 6 — Lazy Playwright framework + strategic automation",
+  "Phase 7 — Execution, evidence policy, quality report with history",
+  "Phase 8 — Governed continuous learning loop",
+  "Phase 9 — Mermaid diagrams + infographics",
+  "Phases 10 through 13 — Web console, runtime MCP, sandboxes, continuous agent",
 ];
 
 const makeCommands: readonly { command: string; purpose: string }[] = [
-  { command: "make setup", purpose: "Install project dependencies." },
-  { command: "make app-up", purpose: "Start the target application locally." },
-  { command: "make explore-ui", purpose: "Explore the UI and generate exploration artifacts." },
-  { command: "make generate-bdd", purpose: "Generate BDD specs from exploration output." },
-  { command: "make generate-tests", purpose: "Generate Playwright tests from approved specs." },
-  { command: "make test-ui", purpose: "Run the UI automation suite." },
-  { command: "make report-quality", purpose: "Generate the quality report." },
+  {
+    command: "./bootstrap.sh",
+    purpose: "Verify prereqs (Python 3.12, PDM, Docker, git, make); auto-install the safe ones.",
+  },
+  {
+    command: "make install",
+    purpose:
+      "Validate plugin manifests, register the local Claude Code marketplace, install the test-commander plugin, verify the four shipped skills.",
+  },
+  {
+    command: "/tc:init",
+    purpose:
+      "Inside a consuming project, copy the 63-file workspace template into .test-commander/. Idempotent — existing files are preserved.",
+  },
+  {
+    command: "/tc:status",
+    purpose:
+      "Print a snapshot: per-bucket file counts, populated counts (bytes differ from template), per-phase status. Read-only.",
+  },
+  {
+    command: "/tc:journal append",
+    purpose:
+      "Append a timestamped narrative entry to today's journal/YYYY-MM-DD.md. Append-only; never edited in place.",
+  },
+  {
+    command: "/tc:next",
+    purpose: "Read the workspace state and recommend the next /tc:* command for this project.",
+  },
+  {
+    command: "/tc:review-requirements",
+    purpose:
+      "Run the 16-dimension rubric on uploaded requirements.md; emit requirements-review.md plus [<kind>] open-questions.",
+  },
+];
+
+const shippedSkills: readonly {
+  skill: string;
+  phase: string;
+  pitch: string;
+  commands: readonly string[];
+}[] = [
+  {
+    skill: "tc-core",
+    phase: "Phase 1",
+    pitch: "Workspace orchestration. Initialize, inspect, journal, recommend.",
+    commands: ["/tc:init", "/tc:status", "/tc:journal", "/tc:next"],
+  },
+  {
+    skill: "tc-requirements",
+    phase: "Phase 2",
+    pitch:
+      "Requirements quality. 16-dimension rubric, INVEST review, AC review, coverage, seed test-ideas.",
+    commands: [
+      "/tc:review-requirements",
+      "/tc:review-user-stories",
+      "/tc:review-acceptance-criteria",
+      "/tc:requirements-coverage",
+      "/tc:requirements-to-tests",
+    ],
+  },
+  {
+    skill: "tc-knowledge",
+    phase: "Phase 3",
+    pitch:
+      "Project knowledge ingestion. Five helpers extract structured artifacts from documents, specs, code, recorded API traffic, and existing tests.",
+    commands: [
+      "/tc:learn-from-docs",
+      "/tc:learn-from-specs",
+      "/tc:learn-from-code",
+      "/tc:learn-from-api",
+      "/tc:learn-from-tests",
+    ],
+  },
+  {
+    skill: "tc-explore",
+    phase: "Phase 4",
+    pitch:
+      "Charter-based exploratory testing. Scope a session, replay a recorded Playwright run, synthesize the summary, enrich the Phase-2 test-idea seeds.",
+    commands: ["/tc:create-charter", "/tc:explore", "/tc:session-summary", "/tc:test-ideas"],
+  },
+];
+
+const walkthroughs: readonly { phase: string; title: string; href: string; body: string }[] = [
+  {
+    phase: "Phase 1",
+    title: "First workflow walkthrough",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/workflow.md",
+    body: "From clone to /tc:next: init the workspace, edit project metadata, append a journal entry, ask what to do next.",
+  },
+  {
+    phase: "Phase 2",
+    title: "Reviewing requirements",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/reviewing-requirements.md",
+    body: "Upload requirements.md, run the rubric pass, surface mutually-exclusive open questions, seed tc-test-idea/v1 files for every REQ.",
+  },
+  {
+    phase: "Phase 3",
+    title: "Building project knowledge",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/building-project-knowledge.md",
+    body: "Drive five /tc:learn-from-* helpers against the seeded sample-project fixture; produce ten product-knowledge artifacts with file:line provenance.",
+  },
+  {
+    phase: "Phase 4",
+    title: "Exploring an app",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/exploring-an-app.md",
+    body: "Charter -> explore -> session-summary -> test-ideas: scope an exploration, classify every recorded event into universal observation and anomaly cores, enrich the Phase-2 seeds.",
+  },
 ];
 
 const audiences: readonly { name: string; pitch: string; points: readonly string[] }[] = [
@@ -279,49 +412,128 @@ const principles: readonly { title: string; body: string }[] = [
     body: "The agent helps; the tester owns the quality decision. AI output is never treated as automatically correct.",
   },
   {
+    title: "Universal cores, project-specific tuning",
+    body: "Per Decision D19, every shipped detector uses universal English and software-engineering vocabulary only. Domain awareness enters additively through <workspace>/config.yaml — extensions union with the universal core; you cannot remove a default. The same rubric runs against a banking app, a hospital system, or an internal dashboard.",
+  },
+  {
+    title: "file:line provenance for every claim",
+    body: "Every entity, business rule, endpoint, anomaly, candidate scenario, or open question Test Commander surfaces is paired with the path:line where it came from. The structured artifacts are indexes, not summaries. You can always answer 'where did this come from' without leaving the workspace.",
+  },
+  {
+    title: "Byte-deterministic re-runs",
+    body: "Every shipped helper is idempotent. Re-running against unchanged input produces byte-identical bytes. The workspace is safe to commit to git like any other source artifact — reviews show up as real diffs; nothing flickers on re-run.",
+  },
+  {
     title: "Exploration before automation",
     body: "Automation starts from understanding. Identify what matters first, then encode it.",
   },
   {
-    title: "BDD as the bridge",
-    body: "Readable specs connect manual testers, automation engineers, and product stakeholders.",
+    title: "BDD as the bridge (Phase 5, in development)",
+    body: "Readable specs connect manual testers, automation engineers, and product stakeholders. The tc-test-idea/v1 schema Phase 2 authors and Phase 4 enriches is the input contract Phase 5 will read.",
   },
   {
-    title: "Deterministic tests for CI/CD",
-    body: "AI may help generate tests, but CI/CD needs reliable checks. Playwright stays the source of truth.",
+    title: "Deterministic tests for CI/CD (Phase 6+)",
+    body: "AI may help generate tests, but CI/CD needs reliable checks. Playwright stays the source of truth once Phase 6 lays the framework down.",
   },
   {
     title: "Separate facts from interpretation",
-    body: "Reports distinguish observed, tested, passed, failed, inferred, and items needing human review.",
+    body: "Reports distinguish observed, tested, passed, failed, inferred, and items needing human review. Phase 7's quality report enforces this separation.",
   },
 ];
 
-const roadmap: readonly { phase: string; title: string; body: string; current?: boolean }[] = [
+type RoadmapStatus = "shipped" | "in-development" | "planned";
+
+const roadmap: readonly {
+  phase: string;
+  title: string;
+  body: string;
+  status: RoadmapStatus;
+  current?: boolean;
+}[] = [
   {
-    phase: "Phase I",
-    title: "UI testing",
-    body: "Exploration, BDD generation, Playwright automation, CI/CD, quality reporting, documentation, blog posts, courseware.",
+    phase: "Phase 0",
+    title: "Repo foundation",
+    body: "Bootstrap script, plugin manifest, marketplace registration, skill verifier, link checker, CI scaffold.",
+    status: "shipped",
+  },
+  {
+    phase: "Phase 1",
+    title: "Workspace + artifact model",
+    body: "tc-core: /tc:init, /tc:status, /tc:journal, /tc:next. 63-file workspace template; per-phase recommendation engine.",
+    status: "shipped",
+  },
+  {
+    phase: "Phase 2",
+    title: "Requirements + user-story intelligence",
+    body: "tc-requirements: 16-dimension rubric, INVEST review, AC review, coverage map, tc-test-idea/v1 seeds.",
+    status: "shipped",
+  },
+  {
+    phase: "Phase 3",
+    title: "Project knowledge ingestion",
+    body: "tc-knowledge: five /tc:learn-from-* helpers (docs, specs, code, api, tests) + shared synthesizer; ten product-knowledge artifacts with file:line provenance.",
+    status: "shipped",
+  },
+  {
+    phase: "Phase 4",
+    title: "Exploratory testing",
+    body: "tc-explore: /tc:create-charter, /tc:explore + internal review sub-mode, /tc:session-summary, /tc:test-ideas enriching Phase-2 seeds.",
+    status: "shipped",
     current: true,
   },
   {
-    phase: "Phase II",
-    title: "API testing",
-    body: "API discovery, contract-style checks, UI/API consistency tests, API quality reporting.",
+    phase: "Phase 5",
+    title: "BDD generation + traceability",
+    body: "tc-bdd + tc-traceability: /tc:generate-bdd, /tc:review-bdd, /tc:traceability-map. Reads enriched test-ideas; emits Gherkin features tied to REQ-IDs.",
+    status: "in-development",
   },
   {
-    phase: "Phase III",
-    title: "Database validation",
-    body: "Test data setup and reset, state validation, UI/API/database traceability, integrity checks.",
+    phase: "Phase 6",
+    title: "Playwright framework + automation candidates",
+    body: "tc-build-framework, tc-automation-plan, tc-automate, tc-test-data: lazy Playwright + TypeScript scaffolding, automation candidate scoring, declarative test data. The strategic-automation adoption stage below names how teams roll this out.",
+    status: "planned",
   },
   {
-    phase: "Phase IV",
-    title: "Quality intelligence",
-    body: "Historical trends, risk scoring, release readiness, agent-assisted recommendations, dashboard views.",
+    phase: "Phase 7",
+    title: "Execution + evidence + quality report",
+    body: "tc-run + tc-quality-report + tc-evidence: /tc:run, /tc:analyze-results, /tc:report, /tc:quality-gate. Per-run records; committed quality-report history.",
+    status: "planned",
   },
   {
-    phase: "Phase V",
-    title: "Training and consulting",
-    body: "Course, workshops, client demos, implementation templates, starter kits.",
+    phase: "Phase 8",
+    title: "Continuous learning",
+    body: "tc-learning: governed lessons inbox; /tc:learn-from-failures, /tc:learn-from-exploration, /tc:review-lessons, /tc:promote-lessons. Nothing promoted silently.",
+    status: "planned",
+  },
+  {
+    phase: "Phase 9",
+    title: "Visual documentation",
+    body: "tc-visualize: Mermaid sources + rendered SVG/PNG, infographics for the quality report.",
+    status: "planned",
+  },
+  {
+    phase: "Phase 10",
+    title: "Web console MVP",
+    body: "tc-web: team-facing dashboard + journal + BDD viewer + run history + evidence gallery + risk register. The same workspace, multi-user.",
+    status: "planned",
+  },
+  {
+    phase: "Phase 11",
+    title: "Runtime API + MCP server",
+    body: "tc-mcp: serve the workspace + commands over an MCP endpoint so other agents and tools can drive Test Commander programmatically.",
+    status: "planned",
+  },
+  {
+    phase: "Phase 12",
+    title: "Sandboxed testing environment",
+    body: "tc-sandbox: on-demand workspaces per PR; no-local-install testing surface; ephemeral artifact storage.",
+    status: "planned",
+  },
+  {
+    phase: "Phase 13",
+    title: "Continuous quality agent",
+    body: "tc-continuous-quality: governed autonomy modes; watch code + requirements + pipelines; open PRs with proposed test updates.",
+    status: "planned",
   },
 ];
 
@@ -500,7 +712,7 @@ export default function TestCommanderPage() {
       >
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">
-            Flagship project · Phase I
+            Flagship project · Phases 0-4 shipped · Phase 5 next
           </p>
           <h1
             id="hero-heading"
@@ -831,6 +1043,108 @@ export default function TestCommanderPage() {
       </section>
 
       {/* ============================================================
+         SHIPPED SKILLS — four skills, twelve commands. Each card lists
+         the commands the skill owns.
+         ============================================================ */}
+      <section aria-labelledby="skills-heading" className="mt-24">
+        <SectionHeader
+          number="05b"
+          eyebrow="What ships now"
+          title="Four skills, twelve commands, one workspace per project."
+          intro={
+            <>
+              Each <code>tc-*</code> skill is owned in-repo (Decision D1 — no community-skill
+              dependencies). The commands route to bundled Python helpers; the workspace lives at{" "}
+              <code>.test-commander/</code> inside the consuming project and is committed to git
+              like any other source artifact.
+            </>
+          }
+        />
+        <ol className="mt-10 grid gap-6 lg:grid-cols-2">
+          {shippedSkills.map((sk) => (
+            <li
+              key={sk.skill}
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-mono text-base font-semibold text-[var(--color-text)]">
+                  {sk.skill}
+                </h3>
+                <span className="rounded-full bg-[var(--color-accent)] px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--color-accent-fg)]">
+                  {sk.phase} · shipped
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-[var(--color-text-muted)]">{sk.pitch}</p>
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {sk.commands.map((cmd) => (
+                  <li
+                    key={cmd}
+                    className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2.5 py-1 font-mono text-xs text-[var(--color-text)]"
+                  >
+                    {cmd}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ============================================================
+         USER-GUIDE WALKTHROUGHS — four documentation links, one per
+         shipped phase. Each walks the seeded fixture end to end with
+         reproducible terminal output.
+         ============================================================ */}
+      <section aria-labelledby="walkthroughs-heading" className="mt-24">
+        <SectionHeader
+          number="05c"
+          eyebrow="User-guide walkthroughs"
+          title="One reproducible walkthrough per shipped phase."
+          intro={
+            <>
+              Every shipped phase ships its own end-to-end walkthrough under{" "}
+              <code>docs/user-guide/</code> in the test-commander repo. Each one drives the seeded
+              fixture end to end with verbatim sample output so a reader can reproduce the result in
+              a tmp workspace.
+            </>
+          }
+        />
+        <ul className="mt-10 grid gap-5 sm:grid-cols-2">
+          {walkthroughs.map((w) => (
+            <li
+              key={w.title}
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
+            >
+              <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-accent)]">
+                {w.phase}
+              </p>
+              <h3 className="mt-2 text-base font-semibold text-[var(--color-text)]">
+                <a
+                  href={w.href}
+                  rel="noopener"
+                  className="underline decoration-[var(--color-accent)] underline-offset-4 hover:text-[var(--color-accent)]"
+                >
+                  {w.title}
+                </a>
+              </h3>
+              <p className="mt-2 text-sm text-[var(--color-text-muted)]">{w.body}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-8 max-w-3xl text-sm text-[var(--color-text-muted)]">
+          For a single hands-on tour that walks all four shipped phases against one tmp project,
+          read the blog post{" "}
+          <Link
+            href="/blog/test-commander-after-phase-4-hands-on-tour/"
+            className="font-medium text-[var(--color-text)] underline decoration-[var(--color-accent)] underline-offset-2 hover:text-[var(--color-accent)]"
+          >
+            Test Commander after Phase 4: a hands-on tour
+          </Link>
+          .
+        </p>
+      </section>
+
+      {/* ============================================================
          EXAMPLE ARTIFACTS — three terminal-styled snippets.
          ============================================================ */}
       <section aria-labelledby="artifacts-heading" className="mt-24">
@@ -848,51 +1162,81 @@ export default function TestCommanderPage() {
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
           <div className="lg:col-span-2">
             <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-              Page inventory · YAML
+              Charter · YAML frontmatter (Phase 4 · shipped)
             </p>
-            <Terminal label="exploration/pages.yaml">
-              {`pages:
-  - name: Product Catalog
-    purpose: Browse available products
-    keyElements:
-      - search field
-      - product cards
-      - basket button
-    risks:
-      - products may fail to load
-      - search results may be inaccurate
-      - basket count may not update`}
+            <Terminal label=".test-commander/charters/CH-001.md">
+              {`---
+id: CH-001
+mission: Discover whether the Sign-in flow plus workspace-detail asset upload
+  behaves correctly under the documented risk conditions.
+target: Sign-in flow plus workspace-detail asset upload (POST /workspaces/{id}/assets).
+time-box: 60min
+risk-areas:
+  - Authentication / authorization boundaries
+  - Session lifecycle and token leakage
+  - Performance under documented load thresholds
+acceptance-criteria:
+  - Every flow under '...' completes the happy path with documented status codes.
+  - Authentication is correctly enforced for every endpoint that should require it.
+  - At least one anomaly per universal category is documented or explained away.
+created_at: 2026-05-28T18:47:33Z
+phase_3_sources:
+  - product-knowledge/entities.md
+  - product-knowledge/user-journeys.md
+  - requirements/open-questions.md
+---`}
             </Terminal>
           </div>
           <div>
             <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-              BDD scenario · Gherkin
+              Exploration note · table excerpt (Phase 4 · shipped)
             </p>
-            <Terminal label="features/basket.feature">
-              {`Feature: Basket Management
-  @smoke @basket
-  Scenario: Customer adds a product to the basket
-    Given the customer is on the product catalog page
-    When the customer adds a product to the basket
-    Then the basket should show the added item`}
+            <Terminal label=".test-commander/exploration-notes/SESS-20260528-600.md">
+              {`# SESS-20260528-600 - exploration note for CH-001
+
+## Observations
+
+| # | event_type      | Page             | Result |
+| - | --------------- | ---------------- | ------ |
+| 0 | page_load       | /sign-in         | ok     |
+| 4 | click           | /sign-in         |        |
+| 5 | network_request | /sign-in         | 201    |
+| 8 | network_request | /dashboard       | 200    |
+
+## Anomalies
+
+| Category         | Severity | Page             | Evidence |
+| ---------------- | -------- | ---------------- | -------- |
+| auth-mismatch    | high     | /workspaces/ws-1 | S-005    |
+| broken-link      | medium   | /account/profile | S-004    |
+| slow-response    | high     | /dashboard       | S-002    |`}
             </Terminal>
           </div>
           <div>
             <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-              Quality report · summary
+              Enriched test-idea · Phase-2 seed + Phase-4 enrichment
             </p>
-            <Terminal label="reports/latest.md">
-              {`Explored 5 major UI flows:
-  catalog, search, login, registration, basket.
+            <Terminal label=".test-commander/test-ideas/REQ-005.md">
+              {`---
+schema: tc-test-idea/v1
+requirement_id: REQ-005
+requirement_title: All API access requires an authenticated user account
+status: enriched              # was: status: seed (Phase 2)
+phase_4_sessions: [SESS-20260528-600]
+phase_2_findings: [completeness, consistency, testability]
+candidates:                   # Phase 2 seeded; preserved byte-for-byte
+  - id: REQ-005-happy-01
+    title: Happy path
+    type: positive
+generated_by: /tc:requirements-to-tests
+---
 
-Test suite: 14 UI tests
-  passed:  12
-  failed:   1   (basket count update)
-  skipped:  1
+## Phase 4 enrichment
 
-Highest-risk area: basket flow.
-Human review recommended for basket and
-registration validation messages.`}
+### SESS-20260528-600
+
+- **CS-600-001** (negative) - Reproduce auth-mismatch on /workspaces/ws-1
+- **CS-600-010** (happy)    - Happy path: POST /sessions returns 201`}
             </Terminal>
           </div>
         </div>
@@ -1032,27 +1376,46 @@ registration validation messages.`}
             </>
           }
         />
-        <ol className="mt-10 grid gap-6 lg:grid-cols-5">
-          {roadmap.map((stage) => (
-            <li
-              key={stage.phase}
-              className={
-                "rounded-lg border bg-[var(--color-surface)] p-5 " +
-                (stage.current
-                  ? "border-[var(--color-accent)] shadow-sm"
-                  : "border-[var(--color-border)]")
-              }
-            >
-              <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-accent)]">
-                {stage.phase}
-                {stage.current ? <span className="ml-2 normal-case">· Current</span> : null}
-              </p>
-              <h3 className="mt-2 text-base font-semibold text-[var(--color-text)]">
-                {stage.title}
-              </h3>
-              <p className="mt-2 text-sm text-[var(--color-text-muted)]">{stage.body}</p>
-            </li>
-          ))}
+        <ol className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {roadmap.map((stage) => {
+            const isShipped = stage.status === "shipped";
+            const isInDev = stage.status === "in-development";
+            const ringClass = stage.current
+              ? "border-[var(--color-accent)] shadow-sm"
+              : isShipped
+                ? "border-[var(--color-border)]"
+                : isInDev
+                  ? "border-[var(--color-accent)] border-dashed"
+                  : "border-[var(--color-border)] bg-[var(--color-surface-muted)]";
+            const pillLabel = isShipped ? "Shipped" : isInDev ? "In development" : "Planned";
+            const pillClass = isShipped
+              ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+              : isInDev
+                ? "bg-[var(--color-surface-muted)] text-[var(--color-accent)] border border-[var(--color-accent)]"
+                : "bg-[var(--color-surface-muted)] text-[var(--color-text-subtle)] border border-[var(--color-border)]";
+            return (
+              <li
+                key={stage.phase}
+                className={`rounded-lg border bg-[var(--color-surface)] p-5 ${ringClass}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-accent)]">
+                    {stage.phase}
+                    {stage.current ? <span className="ml-2 normal-case">· Current</span> : null}
+                  </p>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] ${pillClass}`}
+                  >
+                    {pillLabel}
+                  </span>
+                </div>
+                <h3 className="mt-2 text-base font-semibold text-[var(--color-text)]">
+                  {stage.title}
+                </h3>
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">{stage.body}</p>
+              </li>
+            );
+          })}
         </ol>
       </section>
 
