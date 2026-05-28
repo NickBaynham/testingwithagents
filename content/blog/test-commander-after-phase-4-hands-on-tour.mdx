@@ -1,0 +1,421 @@
+---
+title: "Test Commander after Phase 4: a hands-on tour of what the tool does for testers today"
+slug: "test-commander-after-phase-4-hands-on-tour"
+excerpt: "Four phases in, Test Commander is a Claude Code plugin that turns a project's requirements, source, specs, recorded API traffic, and exploratory recordings into a single committed workspace of structured quality artifacts. This guide steps back from the project log and shows the tool from the user's seat: what it is, why a tester would use it, and four short tutorials that take you from an empty repo to a session-enriched test-idea map without ever leaving the terminal."
+publishedAt: "2026-05-28"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+  - "Tool Reviews"
+tags:
+  - "test-commander"
+  - "agents"
+  - "claude-code"
+  - "plugin-development"
+  - "tdd"
+  - "phased-delivery"
+  - "exploratory-testing"
+  - "charter-based-exploration"
+  - "domain-agnostic"
+---
+
+Test Commander has been a phased build. I have written three project-log posts for it already — one per phase. This is a different kind of post. Phase 4 closed last night with the `phase-4` annotated tag on origin, and the tool now does enough useful work that it deserves a hands-on introduction rather than another chapter of the build journal.
+
+If you have followed the previous posts, you already know how it got here. If you have not, here is the short version: Test Commander is a Claude Code plugin plus a small Python runtime that gives a quality engineer one disciplined place to put everything — requirements reviews, project knowledge, exploration notes, session summaries, test ideas. Twelve `/tc:*` commands ship today, organized into four skills. Every command writes to one workspace under `.test-commander/` inside the consuming project. The workspace is checked into git like any other source file. Re-running anything is idempotent. Nothing leaves your machine.
+
+What follows is a tour from the user's seat. I will name what the tool is, sketch the design that makes it composable, walk through four short tutorials that build on each other, and close with three use cases where this shape of tooling earns its keep.
+
+## What Test Commander is
+
+The mental model is simple. **Test Commander is a structured filesystem with twelve `/tc:*` commands that know how to fill it in.** That is the whole tool.
+
+The filesystem is `<project-root>/.test-commander/` — a sibling of `src/`, `tests/`, `docs/`. It holds every artifact the quality work produces, organized into stable directories the commands own:
+
+```
+.test-commander/
+  project.md                    # who, what, when
+  config.yaml                   # per-project knobs
+  documents/uploaded/           # raw inputs you supply
+  requirements/                 # reviewed requirements + coverage map
+  product-knowledge/            # extracted knowledge from docs/specs/code/api/tests
+  charters/                     # one exploration session's mission
+  exploration-notes/            # every observation + anomaly captured
+  sessions/                     # per-session summaries
+  test-ideas/                   # seeded by Phase 2; enriched by Phase 4
+  evidence/                     # screenshots, logs
+  traceability/                 # cross-source map (Phase 5 will own)
+  bdd/                          # feature files (Phase 5 will own)
+  automation-plan/              # what to automate, why (Phase 6 will own)
+  quality-report/               # release-readiness (Phase 7 will own)
+  learning/                     # governed lessons (Phase 8 will own)
+  journal/                      # append-only daily narrative
+```
+
+Twelve commands ship today across four shipped skills:
+
+| Skill | Phase | Commands |
+| --- | --- | --- |
+| `tc-core` | 1 | `/tc:init`, `/tc:status`, `/tc:journal`, `/tc:next` |
+| `tc-requirements` | 2 | `/tc:review-requirements`, `/tc:review-user-stories`, `/tc:review-acceptance-criteria`, `/tc:requirements-coverage`, `/tc:requirements-to-tests` |
+| `tc-knowledge` | 3 | `/tc:learn-from-docs`, `/tc:learn-from-specs`, `/tc:learn-from-code`, `/tc:learn-from-api`, `/tc:learn-from-tests` |
+| `tc-explore` | 4 | `/tc:create-charter`, `/tc:explore`, `/tc:session-summary`, `/tc:test-ideas` |
+
+Five more skills will ship in Phases 5 through 8 (BDD generation, traceability maps, Playwright automation, evidence and reporting, governed learning). Phases 0 through 4 are the capstone of what I think of as the **input layer**: the part of the tool that turns project context into structured quality artifacts. Everything Phase 5 and beyond will do is consumption of those artifacts.
+
+That ordering matters for users. You can pick up Test Commander today, use it productively for requirements reviews, project-knowledge ingestion, and charter-based exploratory testing, and still get value before the BDD and automation phases ship. The artifacts the input layer produces are useful on their own — you can read a requirements review, a coverage map, or a session summary without any downstream consumer.
+
+## The design that makes this composable
+
+Three decisions shape every command, and they are why the tool stays out of your way.
+
+**Universal cores, project-specific tuning.** Every shipped detector uses universal English and software-engineering vocabulary only. Test Commander does not assume what product your team is testing. It catches universal quality problems — clarity, testability, dependencies, ambiguity, generic-security anti-patterns. To get domain-aware checks, you extend the configuration. The shipped rubric stays the same regardless of whether you are testing a banking app, a hospital information system, or an internal dashboard.
+
+You add your domain through `<workspace>/config.yaml`:
+
+```yaml
+tc-requirements:
+  data-rules:
+    sensitive-keywords: [PAN, primary account number, credit card]
+  risk:
+    compliance-keywords: [PCI, fraud]
+  roles-permissions:
+    permission-verbs: [refund, charge, dispute]
+    role-qualifiers: [customer, store-manager, fulfillment-agent]
+```
+
+Extensions are additive — your list unions with the shipped core. You cannot remove a universal keyword, but you can teach the tool what `refund` means in your shop. If you skip the config entirely, the tool runs cleanly on the universal core alone.
+
+**File:line provenance for every claim.** Every entity, business rule, endpoint, or anomaly Test Commander surfaces is paired with the `path:line` where it came from. When `/tc:learn-from-docs` lists `Account` as an entity, it carries `documents/uploaded/product-overview.md:13`. When a `session-summary` lists a candidate scenario, it carries the recording's source index. The structured artifacts are not summaries — they are indexes. You can always answer "where did this come from" without leaving the workspace.
+
+**Byte-deterministic re-runs.** Every shipped helper is idempotent. Run `/tc:review-requirements` against unchanged input and you get byte-identical bytes. Run `/tc:explore` against an unchanged recording and you get the same SESS-ID, the same observation table, the same anomaly summary. The implication for testers is that the workspace is safe to commit to git like any other source artifact. Reviews show up as real diffs. Nothing flickers on re-run.
+
+These three principles are what let the tool grow phase by phase without breaking what already shipped. The Phase 4 enrichment of Phase 2's test-idea seeds is the canonical proof: the `tc-test-idea/v1` schema is shared across phases, every Phase-2-authored frontmatter key is preserved byte-for-byte through Phase 4 enrichment, and the contract is asserted at the unit-test level by both producer and consumer. You can run Phase 2 today, run Phase 4 next week against the same seeds, and re-run Phase 2 the week after — none of it stomps on the others.
+
+With the design out of the way, here is what using the tool actually looks like.
+
+## Tutorial 1: from clone to "what should I do next?" in five minutes
+
+The first thing every consuming project needs is a workspace. This tutorial assumes you have already run `./bootstrap.sh` and `make install` in your local clone of `test-commander` — that registers the plugin with Claude Code and is a one-time per-machine step. The install guide covers the prerequisites; the short version is Python 3.12, PDM, and Docker.
+
+From the consuming project's root (any project; I will use a tiny throwaway one here):
+
+```sh
+python3 /path/to/test-commander/plugins/test-commander/scripts/init_workspace.py .
+```
+
+Or, equivalently, when invoked through Claude Code: `/tc:init`. The script copies a 63-file workspace template into `.test-commander/` and skips anything that already exists. Output:
+
+```
+workspace: <project>/.test-commander
+created:   63
+skipped:   0
+
+New files:
+  README.md
+  audit/README.md
+  ...
+```
+
+Re-running is a no-op. The template includes a `project.md` with placeholder identity, a `config.yaml` with the shipped defaults, a `methodology.md` for project-specific knobs, and stubs for every directory the later commands will populate.
+
+Open `project.md` and fill in the project's name and a one-paragraph description. That is the only manual step Phase 1 ships with.
+
+Now run `/tc:status`:
+
+```
+workspace: <project>/.test-commander  (initialized)
+last activity: 2026-05-28T19:33:01+00:00
+files: 63 total, 1 populated
+
+by bucket:
+  project.md                   1  (1 populated)
+  requirements                 7  (0 populated)
+  product-knowledge           11  (0 populated)
+  ...
+
+phase status:
+  1     Workspace                  in_progress
+  2     Requirements               not_started
+  3     Project knowledge          not_started
+  ...
+```
+
+`populated` means the file's bytes differ from the bundled template. A phase moves to `in_progress` once at least one file it owns is populated. `/tc:status` is read-only; it never writes.
+
+Append a journal entry as you work:
+
+```sh
+.../journal.py --target . append "Initialized workspace; starting requirements review."
+```
+
+The journal is append-only — every call adds a timestamped H2 section to `.test-commander/journal/YYYY-MM-DD.md`. Bodies that contain their own H2 timestamp are refused so the parser stays unambiguous. Summarize a range with `--summarize --from 2026-05-20 --to 2026-05-31`.
+
+Finally, ask "what should I do next?":
+
+```sh
+.../next_step.py .
+```
+
+```
+next: /tc:review-requirements  (Phase 2)
+  Review the project's requirements: testability, clarity, completeness.
+  Surfaces gaps and ambiguity before any test work begins.
+
+followups:
+  /tc:learn-from-docs  (Phase 3)
+  /tc:create-charter  (Phase 4)
+  /tc:generate-bdd  (Phase 5)
+  /tc:automation-plan  (Phase 6)
+  /tc:run  (Phase 7)
+  /tc:learn  (Phase 8)
+```
+
+`/tc:next` reads the workspace state, applies the documented rule set, and recommends the next command. The top match comes back as `next:`; downstream gaps follow as `followups:`. It will advance as you fill the workspace in — once the requirements review lands, the next pick becomes `/tc:learn-from-docs`; once the project-knowledge ingestion lands, the next pick is `/tc:create-charter`.
+
+That is the whole Phase 1 surface. Four commands, fully shipped, ready to use against any project. The next three tutorials add real work to the workspace.
+
+## Tutorial 2: rough requirements into reviewed, seeded test ideas
+
+Phase 2 ships five commands organized as a chain. Drop your requirements documents into `documents/uploaded/` and the chain reviews them, finds the gaps, builds a coverage map, and emits seeded test-idea files Phase 4 can later enrich.
+
+This tutorial uses a single small input — three requirements I made up on the spot — to keep the example short. In production you would point Test Commander at your real PRD, your acceptance criteria, your user stories.
+
+Create `<workspace>/documents/uploaded/requirements.md`:
+
+```markdown
+REQ-001: The user shall be able to log in.
+
+REQ-002: The system shall be available for use.
+
+REQ-003: Anonymous users may access the API without authentication.
+REQ-004: All API access requires an authenticated user account.
+```
+
+Run `/tc:review-requirements`. The helper parses every `REQ-NNN` line, applies a 16-dimension rubric, writes a structured review to `requirements/requirements-review.md`, and routes gap signals to `requirements/open-questions.md`. Excerpt of the review for REQ-001:
+
+```markdown
+### REQ-001
+
+> The user shall be able to log in.
+
+| Dimension | Verdict |
+| --- | --- |
+| clarity | flagged - ambiguous subject |
+| completeness | flagged - missing happy and edge paths |
+| testability | flagged - no observable success criterion |
+| consistency | OK |
+| ...
+```
+
+REQ-003 and REQ-004 are flagged as a `[mutually-exclusive]` open question because the helper notices both reference `authentication` with contradictory constraints. The open question lands in `requirements/open-questions.md` with the format `[REQ-003] REQ-003 and REQ-004 assert mutually-exclusive constraints over [authentication] - which is authoritative?` Re-running is byte-stable; the dedup contract is `(REQ-ID, question-text)`.
+
+Run `/tc:requirements-to-tests` next. The helper produces one `test-ideas/REQ-NNN.md` per requirement with a Phase-4-compatible YAML frontmatter and a body that quotes the requirement and stubs out happy / edge / negative scenarios:
+
+```yaml
+---
+schema: tc-test-idea/v1
+requirement_id: REQ-001
+requirement_title: The user shall be able to log in
+source: documents/uploaded/requirements.md
+status: seed
+ac_review_present: false
+phase_2_findings:
+  - clarity
+  - completeness
+  - testability
+candidates:
+  - id: REQ-001-happy-01
+    title: Happy path
+    type: positive
+    source: helper-derived
+  - id: REQ-001-edge-01
+    title: Edge case (define from product knowledge)
+    type: edge
+    source: helper-derived
+  - id: REQ-001-negative-01
+    title: Negative case (define from product knowledge)
+    type: negative
+    source: helper-derived
+generated_by: /tc:requirements-to-tests
+---
+
+# Test ideas for REQ-001
+
+## Requirement
+
+> The user shall be able to log in.
+
+## Candidate scenarios
+- **Happy path** (`REQ-001-happy-01`) - the canonical success trajectory; refine from product knowledge.
+- **Edge case** (`REQ-001-edge-01`) - boundary, unusual, or rarely-exercised conditions; refine from product knowledge.
+- **Negative case** (`REQ-001-negative-01`) - failure modes (invalid input, denied permission, network error, etc.); refine from product knowledge.
+```
+
+The candidate stubs deliberately under-specify — they say "edge case, define from product knowledge" rather than guessing the edge cases. That is where Phase 3 and Phase 4 will fill in.
+
+The chain is idempotent. Edit a seed by hand and re-run `/tc:requirements-to-tests` — your edits are preserved. The helper never overwrites an existing seed file. Phase 4's enrichment honors the same contract.
+
+`/tc:requirements-coverage` closes the chain by building a cross-reference between every reviewed REQ-ID and the test-ideas / BDD scenarios / automation map that cover it. Today it shows every REQ as test-idea-seeded but BDD-uncovered (Phase 5) and automation-uncovered (Phase 6). The map is rebuilt from scratch on every run; it is byte-deterministic.
+
+This is the chain a quality engineer would run on any new project's first day. Twenty minutes of input gives you a committed review with structural gap signals and a test-idea backlog with seeded happy / edge / negative anchors — ready to grow as the project's knowledge model fills in.
+
+## Tutorial 3: teach Test Commander your codebase in one sweep
+
+Phase 3 turns the consuming project's existing assets — narrative documents, OpenAPI or Postman specs, Python source, recorded API traffic, existing tests — into a structured knowledge model under `product-knowledge/`. Five helpers, each scoped to one source type, plus a shared synthesizer that regenerates the top-level `system-model.md` at the end of every helper run.
+
+Drop your assets into the standard `documents/uploaded/` layout:
+
+```
+documents/uploaded/
+  product-overview.md
+  glossary.md
+  user-journey-checkout.md
+  openapi.yaml
+  code/                  # Python tree
+  recorded-api/
+    responses.json       # captured {method, path, status, headers, body}
+  tests/
+    test_*.py
+    *.spec.ts            # Playwright (detected; counted; not parsed in v1)
+```
+
+Run the helpers in any order. Each one is independent — partial runs produce valid partial state. The shared synthesizer rebuilds `system-model.md` byte-deterministically every time.
+
+`/tc:learn-from-docs` extracts entities, terms, journeys, business rules, and assumptions from narrative Markdown. It uses universal English heading tokens (`entit`, `model`, `noun`, `glossary` for entities; `journey`, `flow`, `walkthrough` for journeys) plus RFC-2119 modals (`must`, `shall`, `should`, `may`) for business rules. It does not know what your product is. It does know what a glossary looks like.
+
+`/tc:learn-from-specs` auto-detects OpenAPI 3 (YAML or JSON) and Postman v2.1 collections, extracts endpoints, schemas, and auth schemes, and flags missing response codes or schemas without types as gap signals routed back to `open-questions.md`.
+
+`/tc:learn-from-code` walks Python source via stdlib `ast`, captures every class with attributes and per-class docstring, every public function with decorators and signature, and flags undocumented functions and non-Python files as gaps. v1 parses Python only; non-Python extensions are surfaced as `language-unsupported-in-v1` so you can see what is uncovered.
+
+`/tc:learn-from-api` reads recorded API responses (default `documents/uploaded/recorded-api/responses.json`), classifies by status family, extracts response-body shapes, infers auth-required endpoints, and cross-checks against the spec model. Live mode is opt-in (`tc-knowledge.api.mode: live`) and refused under pytest so test runs never issue real network calls.
+
+`/tc:learn-from-tests` walks pytest-style Python and Playwright spec files, counts test functions, aggregates covered symbols, and flags untested public functions and unsupported test runners.
+
+After all five run, your `product-knowledge/` directory contains ten populated artifacts: five per-source models, four cross-cutting indexes (`entities.md`, `user-journeys.md`, `business-rules.md`, `assumptions.md`) with per-source `## From <source>` sections, and the synthesized `system-model.md` regenerated by every helper. Each entry carries `path:line` provenance. Every gap signal carries a `[<kind>]` prefix in `open-questions.md`.
+
+The discipline is cross-source aware. `/tc:learn-from-code` cross-checks against the spec model and emits `[unimplemented-endpoint]` for spec endpoints whose `operationId` does not match any code function. `/tc:learn-from-api` cross-checks against the spec model and emits `[unspecified-endpoint]` for recorded requests not in the spec and `[mismatched-status]` for recorded statuses outside the spec's declared responses. `/tc:learn-from-tests` cross-checks against the code model and emits `[untested-function]` for public functions whose name never appears in the covered-symbols aggregate. These cross-checks fire in any order — code-before-specs produces no `[unimplemented-endpoint]` gaps; running specs later then re-running code lands them.
+
+This is the model Phase 4 reads.
+
+## Tutorial 4: a charter-based exploration session, end to end
+
+Phase 4 closes the input layer with charter-based exploratory testing. Four commands compose into one workflow: scope a session against the project knowledge, replay a recorded Playwright session to harvest observations and anomalies, synthesize the session summary, and enrich the Phase-2 test-idea seeds with session-derived candidate scenarios.
+
+Start by authoring or auto-suggesting a charter. With Phase 3's product-knowledge already populated, the simplest invocation is just to pass the target:
+
+```sh
+.../create_charter.py . --target "Sign-in flow plus workspace-detail asset upload (POST /workspaces/{id}/assets)."
+```
+
+The helper writes `charters/CH-001.md` with YAML frontmatter (id, mission, target, time-box of 60 minutes, risk-areas, acceptance-criteria, created_at, phase_3_sources) and a structured body (Mission / Target Area / Time-Box / Risk Areas / Acceptance Criteria / Out of Scope / Phase 3 Sources). The risk areas come from the project's risk register (matching universal-core risk vocabulary plus your `tc-explore.charters.risk-keywords` extensions); the acceptance criteria seed from universal templates and are meant to be edited.
+
+Skip the `--target` and the helper auto-suggests one from the highest-mention-count entity in `entities.md`, breaking ties alphabetically for deterministic output. Run the command twice with the same `--target` and the second run is byte-stable — `created: 0  skipped: 1`. Force a fresh allocation with `--new-id` and you get `CH-002`. User edits to charter bodies are preserved across re-runs.
+
+Next, run `/tc:explore`. The helper reads the charter and a recorded Playwright MCP session JSON at the configured path (default `documents/uploaded/recorded-sessions/<CH-ID>.json`):
+
+```sh
+.../explore.py . --charter CH-001
+```
+
+```
+exploration note written: SESS-20260528-600 (50 observations, 6 anomalies, 9 screenshots, 1 review findings)
+```
+
+The note lands at `exploration-notes/SESS-20260528-600.md` with a first-six-rows excerpt that looks like this:
+
+```markdown
+| # | Timestamp | event_type | Page | Action | Result |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 2026-05-28T10:00:00.000Z | page_load | /sign-in |  | ok |
+| 1 | 2026-05-28T10:00:01.250Z | screenshot | /sign-in |  | Sign-in page rendered with account_id and code fields visible. |
+| 2 | 2026-05-28T10:00:03.100Z | fill | /sign-in | fill input[name=account_id] = acc-*** |  |
+| 3 | 2026-05-28T10:00:04.820Z | fill | /sign-in | fill input[name=code] = *** |  |
+| 4 | 2026-05-28T10:00:06.500Z | click | /sign-in | submit sign-in form |  |
+| 5 | 2026-05-28T10:00:06.812Z | network_request | /sign-in | POST /sessions -> 201 | 201 |
+```
+
+Six universal event types — `page_load`, `click`, `fill`, `screenshot`, `console_message`, `network_request` — surface every action in the recording. Six universal anomaly categories — `slow-response`, `console-error`, `broken-link`, `missing-evidence`, `auth-mismatch`, `unexpected-state` — classify every flagged event. A Charter-Coverage matrix marks each acceptance criterion `observed`, `partial`, or `unobserved`. An Evidence index lists every screenshot with an `evidence/screenshots/<id>.png` reference.
+
+The internal exploration-review sub-mode auto-runs at the end of every session (suppress with `--no-review`). It appends `[exploration-review]` gap signals to `requirements/open-questions.md` for any anomaly that carries no evidence within ±3 seconds and any acceptance criterion marked `unobserved`. Re-running the same charter against the same recording produces byte-identical bytes; the SESS-ID itself derives from the recording's first-event timestamp, so replay against unchanged input always lands the same session.
+
+Run `/tc:session-summary` against the SESS-ID:
+
+```sh
+.../session_summary.py . --session SESS-20260528-600
+```
+
+```
+session summary written: SESS-20260528-600 (12 candidate scenarios) at <workspace>/sessions/SESS-20260528-600.md
+```
+
+The summary aggregates observations by `event_type`, anomalies by `category` AND `severity`, charter coverage into a one-line verdict (`X observed, Y partial, Z unobserved` of total ACs), and synthesizes candidate scenarios:
+
+- One `negative` candidate per anomaly, sorted by category.
+- One `edge` candidate per partial or unobserved coverage verdict.
+- Up to three `happy` candidates from successful network requests on distinct `(method, path)` pairs.
+
+Each candidate carries four stable fields — `id`, `title`, `type`, `source` — that the next step reads. The sessions index at `sessions/index.md` lists every session sorted by SESS-ID for quick navigation. An Executive Narrative section is left as a placeholder for human or Claude judgment on top of the mechanical synthesis.
+
+Close the loop with `/tc:test-ideas`:
+
+```sh
+.../enrich_test_ideas.py . --session SESS-20260528-600
+```
+
+```
+enriched: 10 (skipped: 0, untouched: 7)
+  - .test-commander/test-ideas/REQ-004.md
+  - .test-commander/test-ideas/REQ-005.md
+  - .test-commander/test-ideas/REQ-006.md
+  - .test-commander/test-ideas/REQ-008.md
+  ...
+```
+
+The helper maps each session-derived candidate back to the Phase-2 test-idea seeds whose REQ-ID the charter covers — using a five-character prefix-stem keyword match so `authentication` (the requirement) matches `authenticated` (the charter), and `session` matches `sessions`. Every matched seed has `status: seed` flipped to `status: enriched`, gets a `phase_4_sessions: [SESS-...]` line merged into its frontmatter, and grows a `## Phase 4 enrichment` body section listing the contributing session's candidate scenarios:
+
+```markdown
+## Phase 4 enrichment
+
+### SESS-20260528-600
+
+Charter `CH-001` - Sign-in flow plus workspace-detail asset upload.
+
+This session contributed **12** candidate scenarios mapped to this requirement via charter-coverage keyword cross-reference.
+
+- **CS-600-001** (negative) - Reproduce auth-mismatch on /workspaces/ws-1
+  - source: `SESS-20260528-600:anomaly:auth-mismatch`
+  - linked_anomaly: `auth-mismatch`
+- **CS-600-002** (negative) - Reproduce broken-link on /account/profile
+  - source: `SESS-20260528-600:anomaly:broken-link`
+  - linked_anomaly: `broken-link`
+- ...
+- **CS-600-010** (happy) - Happy path: POST /sessions returns 201
+  - source: `SESS-20260528-600:obs:5`
+```
+
+Every Phase-2-shipped key in the frontmatter is preserved byte-for-byte. Run a second session against the same charter and `phase_4_sessions:` merges sorted-deduplicated; a new `### <SESS-ID>` sub-block lands under the same `## Phase 4 enrichment` header without duplicating the previous session's. User edits to the body outside the enrichment section are preserved across re-runs.
+
+This is the input layer's payoff. Twenty minutes of charter-driven exploration against a recorded session enriches every relevant requirement seed with concrete, traceable, charter-grounded candidate scenarios — each one citing its observation source index in the recording, each one mapped back to the requirement that motivated it.
+
+## Three use cases where this earns its keep
+
+**Pre-release exploratory testing of a feature.** A team is about to ship a new asset-upload flow. The QA lead authors a charter for the flow's risk areas (auth boundaries, file-size limits, session expiration), records a Playwright session walking the flow under a few personas, and runs `/tc:create-charter` → `/tc:explore` → `/tc:session-summary` → `/tc:test-ideas`. The output is a session note (every observation, every anomaly, every coverage gap), a session summary (aggregate counts plus structured candidate scenarios), and an enriched test-idea map (every requirement the charter covers now carries the candidate scenarios as concrete follow-up work). The session note lives in git as evidence the feature was actually exercised; the test-idea map is the input to whatever automation work the team picks up next.
+
+**Discovering what a new project even contains.** A consulting engagement starts with no prior knowledge of the codebase. The team drops the repo's docs, OpenAPI spec, Python source, recorded API traffic from a smoke run, and existing tests into `documents/uploaded/` and runs the five `/tc:learn-from-*` helpers. The result is a structured knowledge model — `entities.md` listing every domain concept with source provenance, `business-rules.md` listing every modal sentence with source provenance, `tests-coverage.md` listing every covered and uncovered function. Gaps land in `requirements/open-questions.md` with a `[<kind>]` prefix — undocumented functions, unspecified endpoints, mismatched response codes, untested public functions. Three hours of input ingestion produces a knowledge baseline the team can read, discuss, and act on.
+
+**Closing the gap between requirements and exploration.** Most teams already write requirements and already do exploratory testing. The work product of each rarely informs the other — requirement reviews die in confluence, exploration notes die in slack. Phase 2 plus Phase 4 closes the loop. The Phase 2 review produces seeded test-idea files per requirement. The Phase 4 exploration enriches those seeds with concrete, source-cited candidate scenarios drawn from real session observations. The shared `tc-test-idea/v1` schema is the durable artifact — the requirement, the review findings, the seeded candidates, the session-derived candidates, all in one committed file per REQ-ID. When Phase 5 ships BDD generation, that file becomes the input to the `.feature` author.
+
+## Try it
+
+Test Commander lives at `https://github.com/NickBaynham/test-commander`. Installation is two stages on macOS, Linux, or WSL2:
+
+```sh
+./bootstrap.sh    # verifies prereqs; auto-installs the safe ones
+make install      # validates manifests, registers marketplace, installs plugin, verifies skills
+```
+
+The repo's `docs/install.md` covers per-platform notes. Once the plugin is installed in Claude Code, the four shipped skills (`tc-core`, `tc-requirements`, `tc-knowledge`, `tc-explore`) appear in available skills and the `/tc:*` slash commands route to the bundled Python helpers.
+
+The user-guide walkthroughs are the canonical references for each phase: `docs/user-guide/workflow.md` for Phase 1, `docs/user-guide/reviewing-requirements.md` for Phase 2, `docs/user-guide/building-project-knowledge.md` for Phase 3, and `docs/user-guide/exploring-an-app.md` for Phase 4. Each walks the seeded fixture end to end with verbatim output you can reproduce in a tmp workspace.
+
+Phase 5 — BDD generation and traceability maps — starts next.
