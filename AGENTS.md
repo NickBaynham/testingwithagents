@@ -41,6 +41,19 @@ This file captures project identity and working norms. Implementation details li
 - Update `CHANGELOG.md`, `FEATURES.md`, and `TODO.md` at the end of every task.
 - When an issue is resolved, update the relevant doc (this file, `plan/plan.md`, or `docs/*`) with preventive guidance so the problem cannot recur silently.
 
+## E2E test conventions (Playwright)
+
+- **Match closed-set headings/labels with `exact: true`.** `getByRole("heading", { name })`
+  matches the accessible name as a *substring* by default. A test that asserts a fixed list
+  of card titles (adoption stages, autonomy levels, audiences, roadmap phases) will hit a
+  strict-mode violation the moment page copy introduces another heading that *contains* one
+  of those titles — e.g. the adoption stage "Strategic automation" colliding with the
+  roadmap card "Playwright framework + strategic automation". Pass `exact: true` (or scope
+  the locator to its section) so each assertion matches only its own element. This is the
+  most common reason an unrelated copy edit turns these specs red.
+- Prefer scoping (`section.getByRole(...)`) or `exact: true` over `.first()` when the intent
+  is "this specific element," so a future duplicate fails loudly instead of silently passing.
+
 ## Definition of Done (per task)
 
 A task is done when:

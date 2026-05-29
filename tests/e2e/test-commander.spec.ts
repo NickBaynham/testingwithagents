@@ -48,7 +48,9 @@ test.describe("/test-commander", () => {
       "Recruiters and hiring managers",
       "Clients",
     ]) {
-      await expect(page.getByRole("heading", { level: 3, name: audience })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { level: 3, name: audience, exact: true }),
+      ).toBeVisible();
     }
 
     // CTA section links to Contact and LinkedIn. trailingSlash: true in
@@ -69,6 +71,10 @@ test.describe("/test-commander", () => {
 
   test("implementation roadmap renders all nine adoption stages", async ({ page }) => {
     await page.goto("/test-commander/");
+    // exact: true — several adoption-stage titles (e.g. "Strategic automation")
+    // are substrings of capability-roadmap card titles ("Playwright framework +
+    // strategic automation"). Default substring matching would collide and fail
+    // strict mode. See the heading-locator note in AGENTS.md.
     for (const title of [
       "Quality visibility",
       "Requirements review",
@@ -80,7 +86,7 @@ test.describe("/test-commander", () => {
       "Continuous self-improvement",
       "Governed autonomy",
     ]) {
-      await expect(page.getByRole("heading", { level: 3, name: title })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 3, name: title, exact: true })).toBeVisible();
     }
   });
 
@@ -94,11 +100,11 @@ test.describe("/test-commander", () => {
       "Governed maintenance",
       "Fully autonomous agent",
     ]) {
-      await expect(page.getByRole("heading", { level: 3, name })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 3, name, exact: true })).toBeVisible();
     }
     // The "Recommended default" pill is a sibling of the Level 3 heading.
     const level3Card = page
-      .getByRole("heading", { level: 3, name: "Pull request automation" })
+      .getByRole("heading", { level: 3, name: "Pull request automation", exact: true })
       .locator("xpath=ancestor::li[1]");
     await expect(level3Card.getByText(/Recommended default/i)).toBeVisible();
   });
