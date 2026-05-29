@@ -7,7 +7,7 @@ import { breadcrumbListJsonLd, type JsonLdObject } from "@/lib/seo/structured-da
 import { site } from "@/lib/site-config";
 
 const description =
-  "Test Commander is a Claude Code plugin plus a small Python runtime that turns a project's requirements, source, specs, recorded API traffic, and exploratory recordings into one committed workspace of structured quality artifacts. Phases 0 through 4 are shipped: workspace orchestration, requirements quality review, project knowledge ingestion, and charter-based exploratory testing. Twelve /tc:* commands across four skills.";
+  "Test Commander is a Claude Code plugin plus a small Python runtime that turns a project's requirements, source, specs, recorded API traffic, and exploratory recordings into one committed workspace of structured quality artifacts. Phases 0 through 6 are shipped: workspace orchestration, requirements quality review, project knowledge ingestion, charter-based exploratory testing, BDD generation with traceability, and a lazily-scaffolded Playwright/TypeScript automation suite. Twenty-six /tc:* commands across ten skills.";
 
 export const metadata: Metadata = {
   title: "Test Commander",
@@ -123,8 +123,11 @@ $ /tc:review-requirements
 $ /tc:learn-from-docs
 $ /tc:create-charter --target "Sign-in flow"
 $ /tc:explore --charter CH-001
-$ /tc:session-summary --session SESS-20260528-600
-$ /tc:test-ideas --session SESS-20260528-600`;
+$ /tc:test-ideas --session SESS-20260528-600
+$ /tc:generate-bdd
+$ /tc:automation-plan
+$ /tc:automate
+$ /tc:traceability-map`;
 
 const workflowSteps: readonly {
   label: string;
@@ -162,29 +165,32 @@ const workflowSteps: readonly {
   },
   {
     label: "Specify",
-    hint: "Reviewed requirements; BDD generation next.",
-    status: "in-development",
+    hint: "Reviewed requirements and traceable BDD specs.",
+    status: "shipped",
     body: (
       <>
-        Phase 2 (shipped 2026-05-27) ships the requirements layer:{" "}
-        <code>/tc:review-requirements</code>, <code>/tc:review-user-stories</code>,{" "}
-        <code>/tc:review-acceptance-criteria</code>, plus <code>/tc:requirements-to-tests</code> for
-        seeded <code>tc-test-idea/v1</code> files Phase 4 enriches with session-derived candidates.
-        Phase 5 (BDD generation + traceability) is the next milestone.
+        Phase 2 (shipped 2026-05-27) ships the requirements layer; Phase 5 (shipped 2026-05-29)
+        turns enriched test ideas into Gherkin. <code>/tc:generate-bdd</code> renders one scenario
+        per enrichment candidate with machine-readable <code>@req:</code>/<code>@cs:</code>
+        provenance, <code>/tc:review-bdd</code> runs a six-category universal rubric, and{" "}
+        <code>/tc:traceability-map</code> rebuilds the requirement and scenario-level maps tying
+        each requirement forward to the scenarios that exercise it.
       </>
     ),
   },
   {
     label: "Automate",
-    hint: "Playwright framework lazily scaffolded.",
-    status: "planned",
+    hint: "Playwright suite generated from scored candidates.",
+    status: "shipped",
     body: (
       <>
-        Phase 6. <code>/tc:build-framework</code> will lazily scaffold a Playwright + TypeScript
-        framework; <code>/tc:automation-plan</code> and <code>/tc:automate</code> will score
-        automation candidates against the enriched test-ideas, generate page objects + fixtures, and
-        keep test data in <code>.test-commander/test-data/</code> rather than inline in code.
-        Approved BDD scenarios become deterministic Playwright tests.
+        Phase 6 (shipped 2026-05-29) is the project&rsquo;s first executable artifacts.{" "}
+        <code>/tc:build-framework</code> lazily scaffolds a Playwright + TypeScript framework;{" "}
+        <code>/tc:automation-plan</code> scores every scenario against a seven-factor suitability
+        rubric; <code>/tc:automate</code> generates page objects, fixtures, and specs with{" "}
+        <code>@req:</code>/<code>@cs:</code> provenance; <code>/tc:review-automation</code> enforces
+        quality; and <code>/tc:generate-test-data</code> keeps data in{" "}
+        <code>.test-commander/test-data/</code> rather than inline in code.
       </>
     ),
   },
@@ -236,12 +242,12 @@ const phaseIIncludes = [
   "Phase 2 — Requirements quality (16-dimension rubric, INVEST review, acceptance-criteria review, coverage map, seeded test-ideas)",
   "Phase 3 — Project knowledge ingestion (five /tc:learn-from-* helpers, shared synthesizer, ten product-knowledge artifacts)",
   "Phase 4 — Charter-based exploratory testing (charters, recorded-session replay, session summaries, Phase-2 seed enrichment)",
+  "Phase 5 — BDD generation and traceability (Gherkin features with @req:/@cs: linkage, six-category review, requirement + scenario maps)",
+  "Phase 6 — Lazy Playwright/TypeScript framework, seven-factor automation plan, generated suite + review, test-data discipline (D6)",
   "All commands idempotent and byte-deterministic; workspace committed to git",
 ];
 
 const phaseIDefers = [
-  "Phase 5 — BDD generation and traceability maps (in development; starts next)",
-  "Phase 6 — Lazy Playwright framework + strategic automation",
   "Phase 7 — Execution, evidence policy, quality report with history",
   "Phase 8 — Governed continuous learning loop",
   "Phase 9 — Mermaid diagrams + infographics",
@@ -256,7 +262,7 @@ const makeCommands: readonly { command: string; purpose: string }[] = [
   {
     command: "make install",
     purpose:
-      "Validate plugin manifests, register the local Claude Code marketplace, install the test-commander plugin, verify the four shipped skills.",
+      "Validate plugin manifests, register the local Claude Code marketplace, install the test-commander plugin, verify the ten shipped skills.",
   },
   {
     command: "/tc:init",
@@ -329,6 +335,48 @@ const shippedSkills: readonly {
       "Charter-based exploratory testing. Scope a session, replay a recorded Playwright run, synthesize the summary, enrich the Phase-2 test-idea seeds.",
     commands: ["/tc:create-charter", "/tc:explore", "/tc:session-summary", "/tc:test-ideas"],
   },
+  {
+    skill: "tc-bdd",
+    phase: "Phase 5",
+    pitch:
+      "BDD generation and review. Render Gherkin from enriched test ideas with @req:/@cs: provenance; run a six-category universal rubric.",
+    commands: ["/tc:generate-bdd", "/tc:review-bdd"],
+  },
+  {
+    skill: "tc-traceability",
+    phase: "Phase 5",
+    pitch:
+      "The cross-cutting map. Rebuild the requirement and scenario-level traceability chains; downstream links resolve as phases populate them.",
+    commands: ["/tc:traceability-map"],
+  },
+  {
+    skill: "tc-build-framework",
+    phase: "Phase 6",
+    pitch:
+      "The lazy framework. Scaffold the project-root tests/ tree, playwright.config.ts, and package.json only when automation first needs them (D8).",
+    commands: ["/tc:build-framework"],
+  },
+  {
+    skill: "tc-automation-plan",
+    phase: "Phase 6",
+    pitch:
+      "The strategic gate. Score every scenario against a seven-factor suitability rubric and rank each automate / consider / manual.",
+    commands: ["/tc:automation-plan"],
+  },
+  {
+    skill: "tc-automate",
+    phase: "Phase 6",
+    pitch:
+      "Generation and review. Render page objects, fixtures, and specs with provenance and fixture-mediated data; mechanically review the result.",
+    commands: ["/tc:automate", "/tc:review-automation"],
+  },
+  {
+    skill: "tc-test-data",
+    phase: "Phase 6",
+    pitch:
+      "The data discipline. Populate test-data/ seed JSON and a per-area spec so nothing is inlined in test code (D6).",
+    commands: ["/tc:generate-test-data"],
+  },
 ];
 
 const walkthroughs: readonly { phase: string; title: string; href: string; body: string }[] = [
@@ -355,6 +403,18 @@ const walkthroughs: readonly { phase: string; title: string; href: string; body:
     title: "Exploring an app",
     href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/exploring-an-app.md",
     body: "Charter -> explore -> session-summary -> test-ideas: scope an exploration, classify every recorded event into universal observation and anomaly cores, enrich the Phase-2 seeds.",
+  },
+  {
+    phase: "Phase 5",
+    title: "Generating BDD",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/generating-bdd.md",
+    body: "generate-bdd -> review-bdd -> traceability-map: render Gherkin from enriched test ideas with @req:/@cs: linkage, run the six-category rubric, and rebuild the requirement and scenario-level maps.",
+  },
+  {
+    phase: "Phase 6",
+    title: "Automating a suite",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/automation.md",
+    body: "build-framework -> automation-plan -> automate -> review-automation -> generate-test-data: score scenarios, generate a traceable Playwright/TypeScript suite, and keep test data out of the code.",
   },
 ];
 
@@ -428,12 +488,12 @@ const principles: readonly { title: string; body: string }[] = [
     body: "Automation starts from understanding. Identify what matters first, then encode it.",
   },
   {
-    title: "BDD as the bridge (Phase 5, in development)",
-    body: "Readable specs connect manual testers, automation engineers, and product stakeholders. The tc-test-idea/v1 schema Phase 2 authors and Phase 4 enriches is the input contract Phase 5 will read.",
+    title: "BDD as the bridge (Phase 5, shipped)",
+    body: "Readable specs connect manual testers, automation engineers, and product stakeholders. The tc-test-idea/v1 schema Phase 2 authors and Phase 4 enriches is the input contract Phase 5 reads — every generated scenario carries @req:/@cs: tags that are the mechanical join key the traceability map parses.",
   },
   {
-    title: "Deterministic tests for CI/CD (Phase 6+)",
-    body: "AI may help generate tests, but CI/CD needs reliable checks. Playwright stays the source of truth once Phase 6 lays the framework down.",
+    title: "Deterministic tests for CI/CD (Phase 6, shipped)",
+    body: "AI may help generate tests, but CI/CD needs reliable checks. Phase 6 generates and structurally validates a Playwright/TypeScript suite, but never invokes the runner — execution is Phase 7's job. Playwright stays the source of truth.",
   },
   {
     title: "Separate facts from interpretation",
@@ -479,19 +539,19 @@ const roadmap: readonly {
     title: "Exploratory testing",
     body: "tc-explore: /tc:create-charter, /tc:explore + internal review sub-mode, /tc:session-summary, /tc:test-ideas enriching Phase-2 seeds.",
     status: "shipped",
-    current: true,
   },
   {
     phase: "Phase 5",
     title: "BDD generation + traceability",
-    body: "tc-bdd + tc-traceability: /tc:generate-bdd, /tc:review-bdd, /tc:traceability-map. Reads enriched test-ideas; emits Gherkin features tied to REQ-IDs.",
-    status: "in-development",
+    body: "tc-bdd + tc-traceability: /tc:generate-bdd, /tc:review-bdd, /tc:traceability-map. Reads enriched test-ideas; emits Gherkin features tied to REQ-IDs with @req:/@cs: linkage.",
+    status: "shipped",
   },
   {
     phase: "Phase 6",
-    title: "Playwright framework + automation candidates",
-    body: "tc-build-framework, tc-automation-plan, tc-automate, tc-test-data: lazy Playwright + TypeScript scaffolding, automation candidate scoring, declarative test data. The strategic-automation adoption stage below names how teams roll this out.",
-    status: "planned",
+    title: "Playwright framework + strategic automation",
+    body: "tc-build-framework, tc-automation-plan, tc-automate, tc-test-data: lazy Playwright + TypeScript scaffolding, seven-factor automation scoring, generated suite + review, test data outside test code. The first executable artifacts. The strategic-automation adoption stage below names how teams roll this out.",
+    status: "shipped",
+    current: true,
   },
   {
     phase: "Phase 7",
@@ -712,7 +772,7 @@ export default function TestCommanderPage() {
       >
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">
-            Flagship project · Phases 0-4 shipped · Phase 5 next
+            Flagship project · Phases 0-6 shipped · Phase 7 next
           </p>
           <h1
             id="hero-heading"
@@ -757,11 +817,12 @@ export default function TestCommanderPage() {
         </div>
 
         <div className="lg:pt-6">
-          <Terminal label="~/test-commander · phase I demo">{heroCommands}</Terminal>
+          <Terminal label="~/test-commander · workflow demo">{heroCommands}</Terminal>
           <p className="mt-4 font-mono text-xs leading-relaxed text-[var(--color-text-subtle)]">
             <span className="text-[var(--color-accent)]">{"// "}</span>
-            Six commands take a tester from a cold local app to a quality report. The agent does the
-            heavy lifting; the tester stays in charge of every decision in between.
+            These commands take a tester from a cold local app through requirements, knowledge,
+            exploration, BDD, and a generated Playwright suite. The agent does the heavy lifting;
+            the tester stays in charge of every decision in between.
           </p>
         </div>
       </section>
@@ -1043,20 +1104,21 @@ export default function TestCommanderPage() {
       </section>
 
       {/* ============================================================
-         SHIPPED SKILLS — four skills, twelve commands. Each card lists
+         SHIPPED SKILLS — ten skills, twenty-six commands. Each card lists
          the commands the skill owns.
          ============================================================ */}
       <section aria-labelledby="skills-heading" className="mt-24">
         <SectionHeader
           number="05b"
           eyebrow="What ships now"
-          title="Four skills, twelve commands, one workspace per project."
+          title="Ten skills, twenty-six commands, one workspace per project."
           intro={
             <>
               Each <code>tc-*</code> skill is owned in-repo (Decision D1 — no community-skill
               dependencies). The commands route to bundled Python helpers; the workspace lives at{" "}
               <code>.test-commander/</code> inside the consuming project and is committed to git
-              like any other source artifact.
+              like any other source artifact. Phase 6 adds the first executable artifacts — a
+              generated Playwright/TypeScript suite at the project-root <code>tests/</code> tree.
             </>
           }
         />
@@ -1237,6 +1299,48 @@ generated_by: /tc:requirements-to-tests
 
 - **CS-600-001** (negative) - Reproduce auth-mismatch on /workspaces/ws-1
 - **CS-600-010** (happy)    - Happy path: POST /sessions returns 201`}
+            </Terminal>
+          </div>
+          <div>
+            <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+              BDD feature · @req:/@cs: linkage (Phase 5 · shipped)
+            </p>
+            <Terminal label=".test-commander/bdd/features/sign-in.feature">
+              {`@area:sign-in
+Feature: Sign-in flow
+
+  @req:REQ-005 @cs:CS-600-010 @smoke
+  Scenario: Happy path - authenticated session is created
+    Given a registered user on the sign-in page
+    When they submit valid credentials
+    Then the session is created and the dashboard loads
+
+  @req:REQ-005 @cs:CS-600-001 @regression @anomaly:auth-mismatch
+  Scenario: Authorization boundary is enforced
+    Given an authenticated user without workspace access
+    When they request a protected workspace asset
+    Then the request is rejected`}
+            </Terminal>
+          </div>
+          <div>
+            <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+              Generated spec · provenance + fixture data (Phase 6 · shipped)
+            </p>
+            <Terminal label="tests/e2e/sign-in.spec.ts">
+              {`import { test, expect } from "../fixtures/sign-in";
+
+// @req:REQ-005 @cs:CS-600-010
+test("Happy path - authenticated session is created", async ({
+  signInPage,
+  data,
+}) => {
+  await signInPage.goto();
+  await signInPage.signIn(data.validUser);
+  await expect(signInPage.dashboard).toBeVisible();
+});
+
+// Generated by /tc:automate · refine steps inside the preserved region.
+// Data flows from .test-commander/test-data/seed/sign-in.json (D6).`}
             </Terminal>
           </div>
         </div>
