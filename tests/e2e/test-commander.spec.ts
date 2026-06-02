@@ -71,10 +71,12 @@ test.describe("/test-commander", () => {
 
   test("implementation roadmap renders all nine adoption stages", async ({ page }) => {
     await page.goto("/test-commander/");
-    // exact: true — several adoption-stage titles (e.g. "Strategic automation")
-    // are substrings of capability-roadmap card titles ("Playwright framework +
-    // strategic automation"). Default substring matching would collide and fail
-    // strict mode. See the heading-locator note in AGENTS.md.
+    // Scope to the adoption section: "Governed autonomy" is also an autonomy-mode
+    // heading elsewhere on the page, so an unscoped exact match collides under
+    // strict mode. exact: true — several adoption-stage titles (e.g. "Strategic
+    // automation") are substrings of capability-roadmap card titles. See the
+    // heading-locator note in AGENTS.md.
+    const adoption = page.locator('section[aria-labelledby="adoption-heading"]');
     for (const title of [
       "Quality visibility",
       "Requirements review",
@@ -86,27 +88,32 @@ test.describe("/test-commander", () => {
       "Continuous self-improvement",
       "Governed autonomy",
     ]) {
-      await expect(page.getByRole("heading", { level: 3, name: title, exact: true })).toBeVisible();
+      await expect(
+        adoption.getByRole("heading", { level: 3, name: title, exact: true }),
+      ).toBeVisible();
     }
   });
 
-  test("autonomy levels render with Level 3 flagged as recommended default", async ({ page }) => {
+  test("autonomy modes render with Mode 3 flagged as recommended default", async ({ page }) => {
     await page.goto("/test-commander/");
+    // Scope to the autonomy section: "Governed autonomy" also titles an
+    // adoption-roadmap stage, so an unscoped exact match collides under strict mode.
+    const autonomy = page.locator('section[aria-labelledby="autonomy-heading"]');
+    // The five shipped autonomy modes (0 read-only-advisor → 4 governed-autonomy).
     for (const name of [
       "Read-only advisor",
       "Assisted testing",
       "Approved execution",
-      "Pull request automation",
-      "Governed maintenance",
-      "Fully autonomous agent",
+      "Pull-request automation",
+      "Governed autonomy",
     ]) {
-      await expect(page.getByRole("heading", { level: 3, name, exact: true })).toBeVisible();
+      await expect(autonomy.getByRole("heading", { level: 3, name, exact: true })).toBeVisible();
     }
-    // The "Recommended default" pill is a sibling of the Level 3 heading.
-    const level3Card = page
-      .getByRole("heading", { level: 3, name: "Pull request automation", exact: true })
+    // The "Recommended default" pill is a sibling of the Mode 3 heading.
+    const mode3Card = autonomy
+      .getByRole("heading", { level: 3, name: "Pull-request automation", exact: true })
       .locator("xpath=ancestor::li[1]");
-    await expect(level3Card.getByText(/Recommended default/i)).toBeVisible();
+    await expect(mode3Card.getByText(/Recommended default/i)).toBeVisible();
   });
 
   test("continuous quality agent section renders the flow and the PR-comment artifact", async ({

@@ -7,7 +7,7 @@ import { breadcrumbListJsonLd, type JsonLdObject } from "@/lib/seo/structured-da
 import { site } from "@/lib/site-config";
 
 const description =
-  "Test Commander is a Claude Code plugin plus a small Python runtime that turns a project's requirements, source, specs, recorded API traffic, and exploratory recordings into one committed workspace of structured quality artifacts. Phases 0 through 6 are shipped: workspace orchestration, requirements quality review, project knowledge ingestion, charter-based exploratory testing, BDD generation with traceability, and a lazily-scaffolded Playwright/TypeScript automation suite. Twenty-six /tc:* commands across ten skills.";
+  "Test Commander is a Claude Code plugin plus a small Python runtime that turns a project's requirements, source, specs, recorded API traffic, and exploratory recordings into one committed workspace of structured quality artifacts. The full roadmap is shipped — all fourteen phases (0 through 13): workspace orchestration, requirements review, knowledge ingestion, exploratory testing, BDD with traceability, Playwright automation, execution and quality reporting, continuous learning, visual documentation, a governed web console, a Runtime API and MCP server, sandboxed environments, and a continuous quality agent. 64 /tc:* commands across 20 skills, every action governed by a single controlled-execution pipeline.";
 
 export const metadata: Metadata = {
   title: "Test Commander",
@@ -197,10 +197,11 @@ const workflowSteps: readonly {
   {
     label: "Execute",
     hint: "Local + CI runs with evidence captured per run.",
-    status: "planned",
+    status: "shipped",
     body: (
       <>
-        Phase 7. <code>/tc:run</code> orchestrates suite execution; per-run records land in{" "}
+        Phase 7 (shipped). <code>/tc:run</code> orchestrates suite execution and{" "}
+        <code>/tc:analyze-results</code> triages failures; per-run records land in{" "}
         <code>.test-commander/runs/</code>; screenshots, traces, and logs route to{" "}
         <code>.test-commander/evidence/</code> with the policy defined in <code>config.yaml</code>.
         The same workflow runs locally and in CI.
@@ -210,10 +211,10 @@ const workflowSteps: readonly {
   {
     label: "Report",
     hint: "Quality report with history; release-readiness scoring.",
-    status: "planned",
+    status: "shipped",
     body: (
       <>
-        Phase 7. <code>/tc:report</code> writes{" "}
+        Phase 7 (shipped). <code>/tc:report</code> writes{" "}
         <code>.test-commander/quality-report/current-quality-report.md</code> and snapshots a copy
         to <code>history/YYYY-MM-DD-HHmm.md</code>. <code>/tc:quality-gate</code> evaluates
         release-readiness against project-defined thresholds. Facts, interpretation, and
@@ -224,13 +225,14 @@ const workflowSteps: readonly {
   {
     label: "Improve",
     hint: "Governed lessons; nothing promoted silently.",
-    status: "planned",
+    status: "shipped",
     body: (
       <>
-        Phase 8. <code>/tc:learn</code>, <code>/tc:learn-from-failures</code>,{" "}
-        <code>/tc:learn-from-exploration</code>, <code>/tc:review-lessons</code>, and{" "}
-        <code>/tc:promote-lessons</code> turn the workspace into a learning loop. Every promotion is
-        visible in <code>git diff</code> — Test Commander never silently rewrites methodology.
+        Phase 8 (shipped). <code>/tc:learn</code>, <code>/tc:learn-from-failures</code>,{" "}
+        <code>/tc:learn-from-exploration</code>, <code>/tc:learn-from-feedback</code>,{" "}
+        <code>/tc:review-lessons</code>, and <code>/tc:promote-lessons</code> turn the workspace
+        into a learning loop. Every promotion is visible in <code>git diff</code> — Test Commander
+        never silently rewrites methodology.
       </>
     ),
   },
@@ -244,14 +246,17 @@ const phaseIIncludes = [
   "Phase 4 — Charter-based exploratory testing (charters, recorded-session replay, session summaries, Phase-2 seed enrichment)",
   "Phase 5 — BDD generation and traceability (Gherkin features with @req:/@cs: linkage, six-category review, requirement + scenario maps)",
   "Phase 6 — Lazy Playwright/TypeScript framework, seven-factor automation plan, generated suite + review, test-data discipline (D6)",
-  "All commands idempotent and byte-deterministic; workspace committed to git",
 ];
 
 const phaseIDefers = [
-  "Phase 7 — Execution, evidence policy, quality report with history",
-  "Phase 8 — Governed continuous learning loop",
-  "Phase 9 — Mermaid diagrams + infographics",
-  "Phases 10 through 13 — Web console, runtime MCP, sandboxes, continuous agent",
+  "Phase 7 — Execution, evidence policy, and the quality report with committed history",
+  "Phase 8 — Governed continuous learning loop (nothing promoted silently)",
+  "Phase 9 — Mermaid diagrams + infographics (eight /tc:diagram-* commands)",
+  "Phase 10 — Read-only web console (dashboard, journal, BDD viewer, run history, evidence)",
+  "Phase 10.5 — Controlled agent execution: the single governed-execution pipeline",
+  "Phase 11 — Runtime API + schema-first MCP server (front-ends to the same pipeline)",
+  "Phase 12 — Sandboxed environments launched from GitHub Actions, safe-by-default",
+  "Phase 13 — Continuous quality agent with five autonomy modes",
 ];
 
 const makeCommands: readonly { command: string; purpose: string }[] = [
@@ -262,7 +267,7 @@ const makeCommands: readonly { command: string; purpose: string }[] = [
   {
     command: "make install",
     purpose:
-      "Validate plugin manifests, register the local Claude Code marketplace, install the test-commander plugin, verify the ten shipped skills.",
+      "Validate plugin manifests, register the local Claude Code marketplace, install the test-commander plugin, verify the twenty shipped skills.",
   },
   {
     command: "/tc:init",
@@ -377,6 +382,103 @@ const shippedSkills: readonly {
       "The data discipline. Populate test-data/ seed JSON and a per-area spec so nothing is inlined in test code (D6).",
     commands: ["/tc:generate-test-data"],
   },
+  {
+    skill: "tc-run",
+    phase: "Phase 7",
+    pitch:
+      "Execution and triage. Orchestrate the suite, capture per-run records, and classify failures without weakening assertions.",
+    commands: ["/tc:run", "/tc:analyze-results"],
+  },
+  {
+    skill: "tc-quality-report",
+    phase: "Phase 7",
+    pitch:
+      "The quality report. Write the current report with committed history and evaluate release-readiness against project thresholds.",
+    commands: ["/tc:report", "/tc:quality-gate"],
+  },
+  {
+    skill: "tc-evidence",
+    phase: "Phase 7",
+    pitch:
+      "The evidence indexer. Route screenshots, traces, and logs into .test-commander/evidence/ per the config policy. Runtime; no /tc:* commands.",
+    commands: ["evidence indexer"],
+  },
+  {
+    skill: "tc-learning",
+    phase: "Phase 8",
+    pitch:
+      "The governed learning loop. Capture lessons from failures, exploration, and feedback; review and promote them in visible git diffs.",
+    commands: [
+      "/tc:learn",
+      "/tc:learn-from-failures",
+      "/tc:learn-from-exploration",
+      "/tc:learn-from-feedback",
+      "/tc:review-lessons",
+      "/tc:promote-lessons",
+    ],
+  },
+  {
+    skill: "tc-visualize",
+    phase: "Phase 9",
+    pitch:
+      "Visual documentation. Eight diagram types, infographics, and a deterministic renderer turn the workspace into Mermaid sources and rendered assets.",
+    commands: ["/tc:visualize", "/tc:diagram-*", "/tc:generate-infographic", "/tc:render-visuals"],
+  },
+  {
+    skill: "tc-web",
+    phase: "Phase 10",
+    pitch:
+      "The read-only web console. A team-facing viewer over the committed workspace — dashboard, journal, BDD, runs, evidence — that never invents data.",
+    commands: [
+      "/tc:web-init",
+      "/tc:web-start",
+      "/tc:web-sync",
+      "/tc:web-index-artifacts",
+      "/tc:web-export",
+    ],
+  },
+  {
+    skill: "tc-governance",
+    phase: "Phase 10.5",
+    pitch:
+      "The controlled-execution pipeline. Intent → plan → policy → approval → bounded execution → validation → audit. Default deny; the single path every action takes. Runtime; no /tc:* commands.",
+    commands: ["governance pipeline"],
+  },
+  {
+    skill: "tc-mcp",
+    phase: "Phase 11",
+    pitch:
+      "Runtime API + MCP server. Alternative front-ends that drive Test Commander over HTTP and the Model Context Protocol — through the same pipeline. Runtime; no /tc:* commands.",
+    commands: ["Runtime API", "MCP server"],
+  },
+  {
+    skill: "tc-sandbox",
+    phase: "Phase 12",
+    pitch:
+      "Sandboxed environments. Launch an on-demand, team-accessible Test Commander environment from GitHub Actions, governed and safe-by-default.",
+    commands: [
+      "/tc:sandbox-init",
+      "/tc:sandbox-launch",
+      "/tc:sandbox-status",
+      "/tc:sandbox-sync",
+      "/tc:sandbox-stop",
+      "/tc:sandbox-export",
+    ],
+  },
+  {
+    skill: "tc-continuous-quality",
+    phase: "Phase 13",
+    pitch:
+      "The continuous quality agent. Watch changes, map impact, find coverage gaps, propose tests, and open labeled PRs — gated by five autonomy modes.",
+    commands: [
+      "/tc:watch-changes",
+      "/tc:impact-analysis",
+      "/tc:coverage-gap-analysis",
+      "/tc:propose-tests",
+      "/tc:create-test-pr",
+      "/tc:continuous-quality-check",
+    ],
+  },
 ];
 
 const walkthroughs: readonly { phase: string; title: string; href: string; body: string }[] = [
@@ -415,6 +517,54 @@ const walkthroughs: readonly { phase: string; title: string; href: string; body:
     title: "Automating a suite",
     href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/automation.md",
     body: "build-framework -> automation-plan -> automate -> review-automation -> generate-test-data: score scenarios, generate a traceable Playwright/TypeScript suite, and keep test data out of the code.",
+  },
+  {
+    phase: "Phase 7",
+    title: "Running tests",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/running-tests.md",
+    body: "run -> analyze-results -> report -> quality-gate: execute the suite, triage failures, write the quality report with committed history, and score release-readiness.",
+  },
+  {
+    phase: "Phase 8",
+    title: "The learning loop",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/learning-loop.md",
+    body: "Capture lessons from failures, exploration, and feedback, then review and promote them — every promotion visible in git diff, nothing rewritten silently.",
+  },
+  {
+    phase: "Phase 9",
+    title: "Visuals and infographics",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/visuals.md",
+    body: "visualize -> the eight diagram-* commands -> generate-infographic -> render-visuals: turn the workspace into Mermaid sources and deterministically rendered assets.",
+  },
+  {
+    phase: "Phase 10",
+    title: "The web console",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/web-console.md",
+    body: "web-init -> web-start -> web-sync: bring up a read-only, team-facing viewer over the committed workspace. Renders the artifacts; never invents data or runs a command.",
+  },
+  {
+    phase: "Phase 10.5",
+    title: "Governance",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/governance.md",
+    body: "The controlled-execution pipeline: how a user request becomes a planned, permission-checked, approved, validated, and audited action — with default deny and no backdoor.",
+  },
+  {
+    phase: "Phase 11",
+    title: "Integrating (API + MCP)",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/integrating.md",
+    body: "Drive Test Commander from another tool or agent over the Runtime API or the schema-first MCP server — both front-ends to the same governed pipeline.",
+  },
+  {
+    phase: "Phase 12",
+    title: "Sandboxes",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/sandbox.md",
+    body: "sandbox-init -> sandbox-launch -> sandbox-status -> sandbox-stop: launch an on-demand environment from GitHub Actions, allow-listed and private-range-blocked by default.",
+  },
+  {
+    phase: "Phase 13",
+    title: "Continuous quality",
+    href: "https://github.com/NickBaynham/test-commander/blob/main/docs/user-guide/continuous-quality.md",
+    body: "watch-changes -> impact-analysis -> coverage-gap-analysis -> propose-tests -> create-test-pr: the watch -> analyze -> propose -> PR loop, gated by the configured autonomy mode.",
   },
 ];
 
@@ -497,7 +647,11 @@ const principles: readonly { title: string; body: string }[] = [
   },
   {
     title: "Separate facts from interpretation",
-    body: "Reports distinguish observed, tested, passed, failed, inferred, and items needing human review. Phase 7's quality report enforces this separation.",
+    body: "Reports distinguish observed, tested, passed, failed, inferred, and items needing human review. The Phase-7 quality report (shipped) enforces this separation.",
+  },
+  {
+    title: "One governed execution path",
+    body: "From Phase 10.5 on, every action above read-only flows through a single controlled-execution pipeline — intent, plan, permission policy, approval gate, bounded execution, validation, audit. The web console, the Runtime API, the MCP server, sandboxes, and the continuous agent are all front-ends to it. Default deny; nothing bypasses the gates.",
   },
 ];
 
@@ -549,51 +703,57 @@ const roadmap: readonly {
   {
     phase: "Phase 6",
     title: "Playwright framework + strategic automation",
-    body: "tc-build-framework, tc-automation-plan, tc-automate, tc-test-data: lazy Playwright + TypeScript scaffolding, seven-factor automation scoring, generated suite + review, test data outside test code. The first executable artifacts. The strategic-automation adoption stage below names how teams roll this out.",
+    body: "tc-build-framework, tc-automation-plan, tc-automate, tc-test-data: lazy Playwright + TypeScript scaffolding, seven-factor automation scoring, generated suite + review, test data outside test code. The first executable artifacts.",
     status: "shipped",
-    current: true,
   },
   {
     phase: "Phase 7",
     title: "Execution + evidence + quality report",
     body: "tc-run + tc-quality-report + tc-evidence: /tc:run, /tc:analyze-results, /tc:report, /tc:quality-gate. Per-run records; committed quality-report history.",
-    status: "planned",
+    status: "shipped",
   },
   {
     phase: "Phase 8",
     title: "Continuous learning",
-    body: "tc-learning: governed lessons inbox; /tc:learn-from-failures, /tc:learn-from-exploration, /tc:review-lessons, /tc:promote-lessons. Nothing promoted silently.",
-    status: "planned",
+    body: "tc-learning: governed lessons inbox; /tc:learn-from-failures, /tc:learn-from-exploration, /tc:learn-from-feedback, /tc:review-lessons, /tc:promote-lessons. Nothing promoted silently.",
+    status: "shipped",
   },
   {
     phase: "Phase 9",
     title: "Visual documentation",
-    body: "tc-visualize: Mermaid sources + rendered SVG/PNG, infographics for the quality report.",
-    status: "planned",
+    body: "tc-visualize: eight /tc:diagram-* types, /tc:generate-infographic, and /tc:render-visuals — Mermaid sources plus deterministically rendered SVG/PNG.",
+    status: "shipped",
   },
   {
     phase: "Phase 10",
     title: "Web console MVP",
-    body: "tc-web: team-facing dashboard + journal + BDD viewer + run history + evidence gallery + risk register. The same workspace, multi-user.",
-    status: "planned",
+    body: "tc-web: a read-only, team-facing viewer over the committed workspace — dashboard, journal, BDD viewer, run history, evidence. Renders the artifacts; never invents data.",
+    status: "shipped",
+  },
+  {
+    phase: "Phase 10.5",
+    title: "Controlled agent execution",
+    body: "tc-governance: the single governed-execution pipeline — intent, plan, permission policy, approval gate, bounded execution, output validation, audit. Default deny; no backdoor.",
+    status: "shipped",
   },
   {
     phase: "Phase 11",
     title: "Runtime API + MCP server",
-    body: "tc-mcp: serve the workspace + commands over an MCP endpoint so other agents and tools can drive Test Commander programmatically.",
-    status: "planned",
+    body: "tc-mcp: an expanded Runtime API and a schema-first MCP server — alternative front-ends that drive Test Commander through the same governed pipeline. Seven permission levels enforced server-side.",
+    status: "shipped",
   },
   {
     phase: "Phase 12",
     title: "Sandboxed testing environment",
-    body: "tc-sandbox: on-demand workspaces per PR; no-local-install testing surface; ephemeral artifact storage.",
-    status: "planned",
+    body: "tc-sandbox: on-demand, team-accessible environments launched from GitHub Actions via a provider abstraction (docker-compose-local MVP). Governed and safe-by-default targeting.",
+    status: "shipped",
   },
   {
     phase: "Phase 13",
     title: "Continuous quality agent",
-    body: "tc-continuous-quality: governed autonomy modes; watch code + requirements + pipelines; open PRs with proposed test updates.",
-    status: "planned",
+    body: "tc-continuous-quality: watch changes, map impact, find coverage gaps, propose tests, and open labeled PRs — gated by five autonomy modes (0 advisor → 4 governed-autonomy). The final phase.",
+    status: "shipped",
+    current: true,
   },
 ];
 
@@ -680,35 +840,30 @@ type AutonomyLevel = {
 
 const autonomyLevels: readonly AutonomyLevel[] = [
   {
-    level: "Level 0",
+    level: "Mode 0",
     name: "Read-only advisor",
-    body: "Reads artifacts, answers questions, produces reports, risks, and recommendations. Modifies nothing. The right place to start.",
+    body: "Reads artifacts, maps impact, finds coverage gaps, and proposes tests. Auto-approves nothing — a pure advisor. The right place to start.",
   },
   {
-    level: "Level 1",
+    level: "Mode 1",
     name: "Assisted testing",
-    body: "Generates proposed artifacts — BDD scenarios, draft tests, automation candidates, report updates. A human reviews and approves.",
+    body: "Auto-approves safe-write work — analysis and proposed artifacts. Anything that writes code, runs tests, or opens a PR still waits for a human.",
   },
   {
-    level: "Level 2",
+    level: "Mode 2",
     name: "Approved execution",
-    body: "Runs designated test suites and updates reports in safe environments. Smoke, regression, screenshots. A good team default.",
+    body: "Adds execute-tests to what auto-approves: the agent may run designated suites in safe environments. It still cannot open a pull request.",
   },
   {
-    level: "Level 3",
-    name: "Pull request automation",
-    body: "Creates branches and PRs with proposed test updates: new BDD scenarios, generated tests, refreshed traceability. Humans review and merge.",
+    level: "Mode 3",
+    name: "Pull-request automation",
+    body: "Adds code-write and may open clearly-labeled pull requests — new BDD scenarios, generated tests, refreshed traceability. Humans review and merge.",
     recommended: true,
   },
   {
-    level: "Level 4",
-    name: "Governed maintenance",
-    body: "Automatically maintains low-risk assets under strict rules — locator refreshes when confidence is high, diagrams, report regeneration, flaky-test triage. Anything load-bearing still goes to review.",
-  },
-  {
-    level: "Level 5",
-    name: "Fully autonomous agent",
-    body: "Continuously modifies tests, adds coverage, updates strategy, executes validation with minimal human involvement. Imaginable, not recommended as a default.",
+    level: "Mode 4",
+    name: "Governed autonomy",
+    body: "Adds external-network targets. The broadest auto-approval — but destructive and admin actions are never auto-approved at any mode, and nothing auto-merges.",
   },
 ];
 
@@ -772,7 +927,7 @@ export default function TestCommanderPage() {
       >
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.22em] text-[var(--color-accent)]">
-            Flagship project · Phases 0-6 shipped · Phase 7 next
+            Flagship project · Phases 0–13 shipped · Project complete
           </p>
           <h1
             id="hero-heading"
@@ -792,8 +947,16 @@ export default function TestCommanderPage() {
           <ul className="mt-8 flex flex-wrap gap-3">
             <li>
               <Link
-                href="#workflow"
+                href="/test-commander/docs"
                 className="inline-flex items-center rounded-md bg-[var(--color-accent)] px-5 py-2.5 text-sm font-medium text-[var(--color-accent-fg)] transition-colors hover:bg-[var(--color-accent-hover)]"
+              >
+                Read the docs
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="#workflow"
+                className="inline-flex items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm font-medium text-[var(--color-text)] transition-colors hover:text-[var(--color-accent)]"
               >
                 See the workflow
               </Link>
@@ -1057,21 +1220,24 @@ export default function TestCommanderPage() {
       <section aria-labelledby="phase-heading" className="mt-24">
         <SectionHeader
           number="05"
-          eyebrow="Phase I"
-          title="UI testing first. Everything else later."
+          eyebrow="The full roadmap"
+          title="Every phase shipped, foundation first."
           intro={
             <>
-              The first phase keeps the surface area teachable. Target application:{" "}
-              <strong className="font-semibold text-[var(--color-text)]">OWASP Juice Shop</strong> —
-              realistic UI complexity, controlled defects, no production risk. The focus is quality
-              engineering, not security exploitation.
+              Test Commander was built phase by phase, each landing under strict test-driven
+              discipline with its own annotated git tag (<code>phase-0</code> …{" "}
+              <code>phase-13</code>
+              ). The foundation (Phases 0–6) established the workspace and the exploration-to-
+              automation pipeline; the later phases (7–13) added execution, reporting, learning,
+              visuals, a governed web console, an API and MCP server, sandboxes, and a continuous
+              quality agent. The whole roadmap is now complete.
             </>
           }
         />
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
           <article className="rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface)] p-6">
             <h3 className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-accent)]">
-              In Phase I
+              Foundation · Phases 0–6
             </h3>
             <ul className="mt-4 space-y-2 text-[var(--color-text-muted)]">
               {phaseIIncludes.map((item) => (
@@ -1084,17 +1250,16 @@ export default function TestCommanderPage() {
               ))}
             </ul>
           </article>
-          <article className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-6">
-            <h3 className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-              Deferred to later phases
+          <article className="rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface)] p-6">
+            <h3 className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--color-accent)]">
+              Now also shipped · Phases 7–13
             </h3>
             <ul className="mt-4 space-y-2 text-[var(--color-text-muted)]">
               {phaseIDefers.map((item) => (
                 <li key={item} className="flex gap-3">
-                  <span
-                    aria-hidden="true"
-                    className="mt-2 h-px w-3 shrink-0 bg-[var(--color-text-subtle)]"
-                  />
+                  <span aria-hidden="true" className="mt-1 text-[var(--color-accent)]">
+                    <Chevron />
+                  </span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -1104,21 +1269,29 @@ export default function TestCommanderPage() {
       </section>
 
       {/* ============================================================
-         SHIPPED SKILLS — ten skills, twenty-six commands. Each card lists
-         the commands the skill owns.
+         SHIPPED SKILLS — twenty skills, 64 commands. Each card lists
+         the commands the skill owns (or its runtime surface).
          ============================================================ */}
       <section aria-labelledby="skills-heading" className="mt-24">
         <SectionHeader
           number="05b"
-          eyebrow="What ships now"
-          title="Ten skills, twenty-six commands, one workspace per project."
+          eyebrow="What ships"
+          title="Twenty skills, 64 commands, one workspace per project."
           intro={
             <>
               Each <code>tc-*</code> skill is owned in-repo (Decision D1 — no community-skill
               dependencies). The commands route to bundled Python helpers; the workspace lives at{" "}
               <code>.test-commander/</code> inside the consuming project and is committed to git
-              like any other source artifact. Phase 6 adds the first executable artifacts — a
-              generated Playwright/TypeScript suite at the project-root <code>tests/</code> tree.
+              like any other source artifact. Three skills (<code>tc-evidence</code>,{" "}
+              <code>tc-governance</code>, <code>tc-mcp</code>) ship runtime rather than{" "}
+              <code>/tc:*</code> commands. The full per-command reference lives on the{" "}
+              <Link
+                href="/test-commander/docs"
+                className="font-medium text-[var(--color-text)] underline decoration-[var(--color-accent)] underline-offset-2 hover:text-[var(--color-accent)]"
+              >
+                documentation page
+              </Link>
+              .
             </>
           }
         />
@@ -1464,19 +1637,20 @@ test("Happy path - authenticated session is created", async ({
       </section>
 
       {/* ============================================================
-         CAPABILITY ROADMAP — five-phase strip of what ships when.
-         Phase I marked current. (Distinct from the team-adoption
-         maturity model in section 11.)
+         CAPABILITY ROADMAP — the full phase strip, all shipped. Phase 13
+         marked current. (Distinct from the team-adoption maturity model
+         in section 11.)
          ============================================================ */}
       <section aria-labelledby="roadmap-heading" className="mt-24">
         <SectionHeader
           number="10"
           eyebrow="Capability roadmap"
-          title="UI now. API, data, intelligence, training next."
+          title="All fourteen phases shipped."
           intro={
             <>
-              What the system <em>can do</em>, phase by phase. Pair this with the team-adoption
-              maturity model below — the two roadmaps answer different questions.
+              What the system <em>can do</em>, phase by phase — every one now complete, each landed
+              under test-driven discipline with its own annotated git tag. Pair this with the
+              team-adoption maturity model below — the two roadmaps answer different questions.
             </>
           }
         />
@@ -1584,19 +1758,20 @@ test("Happy path - authenticated session is created", async ({
       </section>
 
       {/* ============================================================
-         AUTONOMY LEVELS — Level 0 through Level 5. Level 3 (PR
-         automation) is flagged as the recommended team default.
+         AUTONOMY MODES — Mode 0 through Mode 4 (the five shipped modes).
+         Mode 3 (PR automation) is flagged as the recommended team default.
          ============================================================ */}
       <section aria-labelledby="autonomy-heading" className="mt-24">
         <SectionHeader
           number="12"
-          eyebrow="Autonomy levels"
+          eyebrow="Autonomy modes"
           title="How much should the agent be allowed to do on its own?"
           intro={
             <>
-              The interesting design question isn&rsquo;t whether Test Commander <em>can</em> run
-              unattended — it&rsquo;s which actions are safe to automate and which still need a
-              human signature. Six levels, deliberately graduated.
+              Phase 13 ships this as a concrete control: the configured autonomy mode is a{" "}
+              <em>ceiling</em> on which permission levels the continuous agent may auto-approve in
+              the governed pipeline. Five modes, cumulative — and <code>destructive</code> /{" "}
+              <code>admin</code> never auto-approve at any mode.
             </>
           }
         />
@@ -1625,8 +1800,9 @@ test("Happy path - authenticated session is created", async ({
           ))}
         </ol>
         <p className="mt-8 max-w-3xl border-l-2 border-[var(--color-accent)] pl-4 text-sm italic text-[var(--color-text-muted)]">
-          The best mature workflow lives at Level 3. Test Commander runs continuously, but every
-          change to test assets arrives as a pull request a human can read, accept, or reject.
+          A mature workflow tends to settle at Mode 3. Test Commander runs continuously, but every
+          change to test assets arrives as a clearly-labeled pull request a human can read, accept,
+          or reject — and the agent never auto-merges.
         </p>
       </section>
 
@@ -1642,9 +1818,9 @@ test("Happy path - authenticated session is created", async ({
           title="A living quality system, not a one-shot script."
           intro={
             <>
-              The long-term vision is a continuous quality agent: Test Commander watches the
-              application and the delivery pipeline, responds to change, and produces evidence —
-              continuously, transparently, under approval rules.
+              Phase 13 ships the continuous quality agent: Test Commander watches the application
+              and the delivery pipeline, responds to change, and produces evidence — continuously,
+              transparently, and under the autonomy-mode approval rules above.
             </>
           }
         />
