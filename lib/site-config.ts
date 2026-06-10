@@ -14,11 +14,27 @@ export const site = {
   },
 } as const;
 
-export type NavLink = { readonly label: string; readonly href: string };
+export type NavChild = { readonly label: string; readonly href: string };
+export type NavLink = {
+  readonly label: string;
+  readonly href: string;
+  readonly children?: readonly NavChild[];
+};
 
 export const primaryNav: readonly NavLink[] = [
   { label: "About", href: "/about" },
   { label: "Test Commander", href: "/test-commander" },
+  {
+    label: "Reference Implementations",
+    href: "/reference-implementations",
+    children: [
+      { label: "Python Playwright", href: "/reference-implementations/python-playwright" },
+      {
+        label: "TypeScript Playwright",
+        href: "/reference-implementations/typescript-playwright",
+      },
+    ],
+  },
   { label: "Projects", href: "/projects" },
   { label: "Blog", href: "/blog" },
   { label: "Contact", href: "/contact" },

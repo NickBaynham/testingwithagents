@@ -81,3 +81,10 @@ See `plan/plan.md` and `TODO.md`. Pending: visual baselines (Playwright screensh
 - Footer carries an RSS link; Home "Latest writing" surfaces the three most recent posts.
 - Eight posts live: Software testing for the agentic era, Why AI agents still need human testers, Agentic engineering antipatterns, What QA should provide as evidence of readiness, Agentic Test Data Manager (project writeup), Exploratory testing with Claude Code and the Playwright MCP, From exploration to automation: an agentic testing workflow, Inside a single agentic testing session.
 - Sitemap includes every blog post route.
+
+## Reference Implementations section
+
+- `/reference-implementations/` landing page presenting the two open-source test automation platforms (Python and TypeScript) with stack, status, and guide links.
+- `/reference-implementations/python-playwright/` — beginner-friendly guide adapted from the repo's tester guide: three-layer introduction, step-by-step UI/API/database testing with worked examples, test design principles, and a troubleshooting table.
+- `/reference-implementations/typescript-playwright/` — status and UI-layer guide for the TypeScript twin, truthful to its current phase.
+- Header navigation supports one level of sub-menus (hover/focus-within dropdown at desktop widths; landing-page cards as the touch/narrow-viewport path).
