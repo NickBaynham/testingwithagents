@@ -1,0 +1,76 @@
+---
+title: "Two free, full-stack test automation frameworks you can clone today"
+slug: "test-automation-reference-implementations"
+excerpt: "I built the same test automation platform twice — once in Python, once in TypeScript — and open-sourced both. Each one drives Playwright across your UI, REST API, and MongoDB layers, runs on every browser your machine has, and ships with a tester guide whose examples all provably run. Here is what they do, who they are for, and how to get value from them this afternoon."
+publishedAt: "2026-06-10"
+categories:
+  - "Test Automation"
+  - "Agentic Testing"
+tags:
+  - "test-automation"
+  - "playwright"
+  - "python"
+  - "typescript"
+  - "reference-implementation"
+  - "open-source"
+  - "page-objects"
+---
+
+Starting a test automation framework from a blank folder is one of the least rewarding tasks in software. You spend days on plumbing — package managers, linters, browser installs, Docker, CI — before a single test ever runs. And every decision you rush through in that setup phase (How do tests find their target URL? Where do failure screenshots go? Who cleans up test data?) quietly becomes policy your team lives with for years.
+
+So I built the plumbing twice, properly, and published both versions:
+
+- [python-test-automation](https://github.com/NickBaynham/python-test-automation) — Python 3.14, PDM, Pydantic, httpx, pymongo, pytest
+- [typescript-test-automation](https://github.com/NickBaynham/typescript-test-automation) — TypeScript, Node 24, pnpm, Zod, Playwright Test, Vitest
+
+They are mirrored reference implementations of the same idea: one platform that tests your application at three layers — the UI in a real browser, the REST API as a contract, and the database as stored state — with a full-stack scenario that chains all three. Same architecture, same engineering standards, two languages. Pick the one your team already speaks.
+
+Both now have documentation pages on this site: a [section overview](/reference-implementations/), a complete [beginner-friendly guide for the Python implementation](/reference-implementations/python-playwright/), and a [status-and-conventions page for the TypeScript twin](/reference-implementations/typescript-playwright/).
+
+## What you actually get
+
+**Testing at three layers, with one configuration.** UI tests drive Playwright through page objects. API tests use a typed HTTP client with assertion helpers that put the response body in every failure message. Database tests seed their own MongoDB documents and verify state directly. All three read their targets from the same environment-driven settings, so pointing the whole platform at a staging environment is a couple of environment variables — and the configuration refuses to run a "remote" test pass against leftover localhost defaults. That last part has saved me more than once.
+
+**A browser matrix that adapts to the machine.** Run `make install-browsers` and the platform detects what the host can actually run — Playwright's chromium, firefox, and webkit engines, plus branded browsers like Chrome and Edge — and writes the inventory to a file. Every UI test then runs against every available browser automatically. Your teammate with Edge installed gets a wider matrix than you. Nobody edits a test.
+
+**Failure evidence by default.** When a UI test fails, you get a full-page screenshot and a Playwright trace, named after the test. Every run emits Allure results; `make report` opens a browsable HTML report. In CI, all of it uploads as build artifacts. The question "what actually happened?" has an answer before anyone asks it.
+
+**Test data that cleans up after itself.** The seeding fixture inserts documents and removes exactly what it inserted — by id, never by dropping collections — even when the test fails. The UI fixtures track items created through the browser and delete them through the API afterwards. Isolation is not a convention you hope people follow; it is what the fixtures do.
+
+**A real CI pipeline, not a TODO.** GitHub Actions runs linting, strict type checks, unit tests with a 90 percent coverage gate, dependency vulnerability audits, and the full Docker-based integration and e2e suites — on Linux and Windows. The Windows support is genuine: the Makefiles avoid POSIX-only constructs, and the docs tell you exactly what to install.
+
+**A dockerized practice target.** Each repo ships a small React app, a REST API, and MongoDB wired together in docker compose. `make docker-up` gives you a complete, health-checked application to test against — which means you can learn the framework, or demo it to your team, without touching any real system.
+
+**Documentation that provably works.** The Python repo includes a [tester guide](/reference-implementations/python-playwright/) whose every worked example was executed against the live stack before it was committed. Documentation examples that have never run are their own category of bug; these ran.
+
+## Who this is for
+
+**Teams starting a framework.** Clone, rename, point the configuration at your application, delete the sample apps when you no longer need them. The decisions you would have spent weeks debating — locator strategy, suite layout, data isolation, artifact capture, CI shape — come pre-made, with the reasoning written down. Disagree with one? Change it. You are still weeks ahead.
+
+**Testers learning automation.** The [Python guide](/reference-implementations/python-playwright/) is written for you: what each layer is for, three steps to your first UI test, copy-paste examples for every layer, and a troubleshooting table of the failures you will actually hit, each with its cause and fix. The dockerized sample stack means you can practice on day one without access to any real environment.
+
+**Leads who need a teaching tool.** The repos make concrete the conversations that are hard to have in the abstract. What does "test at the lowest layer that proves the behavior" mean? There is a principles table for that. Why are whole-list assertions against shared state forbidden? There is a fixture pattern that shows the alternative. Onboarding a new hire onto your suite becomes "read the guide, do the first run, write one test at each layer."
+
+**Anyone evaluating agentic development.** Both platforms were built with AI agents doing the engineering — test-first, phase by phase, with every decision and every bug logged. And here is my favorite proof that the methodology works: during its own construction, the Python platform's e2e suite caught a real race condition in the sample React app. The form lost user input typed while a submission was in flight. Three of four browsers failed; one passed by timing luck. The fix went into the application, not the tests — because a cross-browser failure pattern is usually an application bug wearing a test-flakiness costume. The framework earned its keep before it ever shipped.
+
+## Why two languages?
+
+Because the language question is usually a people question, not a technical one. Python shops should not have to maintain a TypeScript toolchain to get good UI tests, and TypeScript shops should not bolt Python onto their stack for the same reason.
+
+The two implementations stay in deliberate parity. The Python version is complete across all three layers, including the full-stack scenario and the tester guide. The TypeScript version has shipped its UI layer — with the same host-aware browser matrix and a strict-mode, Zod-validated configuration — and is following the same phased plan through API and database testing. Concepts transfer one-to-one; only the syntax changes. If you learn one, you have learned both.
+
+## Try it this afternoon
+
+The first run is five commands, and the [guide](/reference-implementations/python-playwright/) walks through every one:
+
+```sh
+make install            # dependencies
+make install-browsers   # detect browsers, write the availability file
+make docker-up          # start the sample stack: React app, API, MongoDB
+make test               # unit, integration, and e2e across your browsers
+make report             # open the Allure report
+```
+
+Twenty minutes later you will have watched a UI action travel through a REST API into a MongoDB document and get verified at all three stops — on every browser your machine can run.
+
+Start with the [section overview](/reference-implementations/), go deep with the [Python guide](/reference-implementations/python-playwright/) or the [TypeScript page](/reference-implementations/typescript-playwright/), and clone the repos from [GitHub](https://github.com/NickBaynham/python-test-automation). If you build something on top of them, I would genuinely like to hear about it — the [contact page](/contact/) is open.
