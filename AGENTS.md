@@ -53,6 +53,14 @@ This file captures project identity and working norms. Implementation details li
   most common reason an unrelated copy edit turns these specs red.
 - Prefer scoping (`section.getByRole(...)`) or `exact: true` over `.first()` when the intent
   is "this specific element," so a future duplicate fails loudly instead of silently passing.
+- **Every `overflow-x-auto` (or otherwise scrollable) container needs `tabIndex={0}`,
+  `role="region"`, an `aria-label`, and a visible focus outline** — axe's
+  `scrollable-region-focusable` rule (serious, WCAG 2.1.1) fails otherwise. This has now
+  bitten twice (the test-commander `Terminal`, then the reference-implementations
+  `DataTable`). Treat it as a checklist item whenever adding a scroll container, and do not
+  trust a local a11y pass to clear it: whether content actually overflows at the mobile
+  viewport depends on font rendering, which differs between macOS and the Linux CI runners —
+  the DataTable case passed locally and failed only in CI.
 
 ## Definition of Done (per task)
 

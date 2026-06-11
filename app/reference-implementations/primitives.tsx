@@ -133,7 +133,15 @@ export function DataTable({
   rows: readonly (readonly ReactNode[])[];
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
+    // tabIndex + role: the wrapper can scroll horizontally on narrow
+    // viewports, and a scrollable region must be keyboard-reachable
+    // (axe scrollable-region-focusable).
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label={caption}
+      className="overflow-x-auto rounded-lg border border-[var(--color-border)] focus:outline focus:outline-2 focus:outline-[var(--color-accent)]"
+    >
       <table className="w-full border-collapse text-left text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>
