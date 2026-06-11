@@ -53,6 +53,17 @@ This file captures project identity and working norms. Implementation details li
   most common reason an unrelated copy edit turns these specs red.
 - Prefer scoping (`section.getByRole(...)`) or `exact: true` over `.first()` when the intent
   is "this specific element," so a future duplicate fails loudly instead of silently passing.
+- **Assert internal link hrefs in their post-hydration canonical form — with the trailing
+  slash** (`/reference-implementations/python-playwright/`, not `...playwright`). The site
+  builds with `trailingSlash: true`; the prerendered DOM briefly carries the href as
+  authored, and Next.js normalizes it during hydration. An unslashed assertion can pass
+  locally (fast, pre-hydration) and fail in CI (slower, hydrated). Match the slashed form
+  the existing nav/CTA specs use.
+- **Run new e2e specs with `CI=true` locally before pushing** — CI mode (single worker,
+  retries) changes timing enough to surface hydration races a parallel local run hides.
+- **Hover-dependent tests must skip under mobile emulation**
+  (`test.skip(isMobile, ...)`): the chromium-mobile project emulates touch, where `hover()`
+  is unreliable even after resizing the viewport to desktop width.
 - **Every `overflow-x-auto` (or otherwise scrollable) container needs `tabIndex={0}`,
   `role="region"`, an `aria-label`, and a visible focus outline** — axe's
   `scrollable-region-focusable` rule (serious, WCAG 2.1.1) fails otherwise. This has now
