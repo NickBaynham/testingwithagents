@@ -31,6 +31,12 @@ This file captures project identity and working norms. Implementation details li
 ## Working Agreement
 
 - Work incrementally. Every change ends with a green `make ci`.
+- **Before pushing any change that affects rendered UI, run the a11y and e2e suites locally
+  in CI mode** (`CI=true`, which enables single-worker timing and retries): a parallel local
+  run hides hydration races, and a permissive local environment hides axe violations that
+  only manifest under the CI runners' font rendering. Local green in CI mode is the minimum
+  bar; the CI run on the push is still the arbiter. Never push a UI change with the a11y
+  suite unrun.
 - Identify root cause before fixing. Reproduce, isolate with a failing test, then fix.
 - Use latest stable APIs and libraries. Pin versions.
 - Static-first. Generate at build time wherever possible.
