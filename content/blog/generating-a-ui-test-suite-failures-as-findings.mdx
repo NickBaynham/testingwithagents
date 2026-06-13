@@ -1,0 +1,198 @@
+---
+title: "Generating a UI test suite for a live app: eight failures that were really findings"
+slug: "generating-a-ui-test-suite-failures-as-findings"
+excerpt: "Asked to generate a UI test suite for a live Angular app, the honest answer was that the auto-generated scaffolds were a non-runnable skeleton. The real suite had to be hand-authored and debugged into green against the running system. It went from 30 to 41 passing tests across eight rounds of failure, and every failure was the application teaching the test something true about itself: a blank edit form, unlabelled number inputs, an anchored URL validator, a list that does not render reliably, and a backend that mishandles concurrent writes."
+publishedAt: "2026-06-13"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+  - "Project Logs"
+tags:
+  - "playwright"
+  - "ui-testing"
+  - "test-commander"
+  - "data-driven-tests"
+  - "page-objects"
+  - "angular"
+  - "fastapi"
+  - "ci"
+  - "session-walkthrough"
+  - "agents"
+  - "claude-code"
+---
+
+This is a sequel of sorts. A previous post walked through driving Test Commander against a live FastAPI events application, ending on a failing quality gate backed by six reproducible defects. That work produced a runnable API regression suite. What it did not produce was a UI suite — and the conversation that followed is the subject here, because it is a good example of the difference between *generating* tests and *having* tests.
+
+It started with three plain questions, in order. "Why is there only create user — where are all the other tests?" Then, after some honesty about scope: "Did we generate a UI testing suite for this?" And finally: "Build the UI suite." That last instruction is where the real work began, and the real work was not writing tests. It was debugging them into existence against a running application that had opinions of its own.
+
+The headline: the suite went from 30 passing tests to a stable 41, green both headless and headed, plus a CI workflow — across eight rounds of failure. And the instructive part is that not one of those eight failures was a flaw in the test framework or a typo. Each one was the application revealing a behavior I had assumed wrong. The failures were the findings.
+
+## The scaffolds were a skeleton, not a suite
+
+Test Commander has a `/tc:automate` command that generates Playwright/TypeScript specs from BDD scenarios. I ran it for completeness. It produced 29 `.spec.ts` files, 29 page objects, fixtures, an automation map — a whole framework shape. And every generated test body was the same placeholder:
+
+```ts
+await page.goto();
+// Refine the Given/When/Then below; data comes from `data` (D6).
+await expect(page).toHaveURL(/.+/);
+```
+
+`toHaveURL(/.+/)` matches any URL. It can never fail. Worse, the scenario titles carried embedded quotes that produced unescaped `test('...')` strings that would not compile. And `/tc:review-automation`, the tool's own quality check, passed all 29 with zero findings — because its rubric is a structural lint (does a `test()` have a provenance comment, does it call `expect()`) and not a semantic one.
+
+So the honest answer to "did we generate a UI suite" was: a UI test *framework* was generated, but not a working UI test *suite*. The scaffolds are a traceability skeleton. The muscle — real selectors, real assertions, real flows — has to be authored. **A green review verdict is only as strong as what the rubric inspects; know whether your automation review is checking structure or behavior before you trust its color.**
+
+So I built the suite by hand, in a clean `ui-tests/` directory, as a real Playwright project.
+
+## Discover the form before you assert on it
+
+The application is a schema-generated admin UI: a dashboard of cards, one per entity (Account, User, Profile, TagAffinity, Event, UserEvent, Url, Crawl), each opening a list with a create form. Eight entities, uniform shape. That uniformity is what makes a data-driven suite worth building — one harness, eight entities — but only if the harness fills each entity's form correctly, and forms have details you cannot guess.
+
+So before writing a single assertion, I drove the live app through Playwright MCP — a real browser — to learn the actual UI. The dashboard's eight management buttons. The user list's columns (no password column, even though the API returns one). The create form, where the Submit button is disabled until the form is valid, and an invalid email surfaces the inline message "email has an invalid format." I filled that form by hand, watched Submit flip from disabled to enabled, and only then wrote the page object and the assertions to match what I had seen.
+
+The configuration that drives the whole suite is derived from the app's own `/api/metadata` endpoint — the authoritative model of every field, type, constraint, and relationship — and verified against the live forms. A single entity's config looks like this:
+
+```ts
+{
+  name: "TagAffinity",
+  route: "/entity/TagAffinity",
+  card: "Manage Event Affinity",
+  title: "Tag Affinity",
+  uniqueField: "tag",
+  uniqueFieldLabel: "tag *",
+  required: [
+    { kind: "text", label: "tag *", valid: (s) => `tcuitag${s}` },
+    { kind: "number", label: "affinity *", valid: () => "10" },
+    { kind: "fk", fkIndex: 0, fkEntity: "profile", valid: () => "" },
+  ],
+  invalid: { label: "affinity *", value: "500" },
+  update: { kind: "number", label: "affinity *", apiField: "affinity", value: "20" },
+  deletable: true,
+}
+```
+
+From eight of those, the specs build themselves: a list-smoke test per entity, create-form validation per entity, a create/read/delete round-trip per entity, an edit per entity that supports it, plus dashboard and security checks. About 41 tests. I wrote it, ran it, and it went red. Repeatedly. Here is what each round taught me.
+
+## The failures were the findings
+
+### 1. Number inputs are unlabelled spinbuttons
+
+The first failures were `getByRole('spinbutton', { name: 'affinity *' })` timing out. The accessibility tree explained it: text inputs expose their label as an accessible name (`textbox "tag *"`), but the number input rendered as a `spinbutton` with **no accessible name at all**. The label sits next to it in the DOM, unassociated. That is a genuine accessibility gap in the app. The fix was to stop relying on a name the control does not have:
+
+```ts
+case "number":
+  // Number inputs render as spinbuttons with no accessible name in this
+  // app, so locate by type. Each create form has at most one.
+  return this.page.locator('input[type="number"]').first();
+```
+
+### 2. The URL validator is an anchored, broken pattern
+
+The `Url` entity's create form would not enable Submit no matter what URL I typed. The metadata listed the validation pattern as `main.url`. Angular's `Validators.pattern` anchors patterns with `^...$`, so the field demands that the *entire* value match `^main.url$` — eight characters, where the dot matches any single character. No real URL passes. The value that does is, literally, `main.url`. That is a weak, almost certainly unintended validator — itself a finding — and the test now documents it by using the only value the rule accepts.
+
+### 3. Crawl has no Create button, and that is correct
+
+Three Crawl tests failed waiting for a "Create Crawl" button that does not exist. The metadata declares Crawl's operation set as `rd` — read and delete, no create. The UI honors that: no create form. The same app's *API*, as the earlier post found, happily accepts `POST /api/crawl` despite the `rd` declaration. So the UI enforces the capability model the backend ignores. I split Crawl onto its own path — created via the API, read through the UI list — and the smoke test now asserts the absence of the Create button as a positive behavior. **When a test "fails" because a control is missing, ask whether the missing control is the correct behavior before you make the test expect it.**
+
+### 4. The edit route is the reverse of what I assumed
+
+I had guessed the edit URL was `/entity/User/edit/<id>`. Navigating there redirected to the home page, so I assumed editing was broken. It was not — I had the segments backwards. Clicking the in-app Edit button revealed the real route: `/entity/<Name>/<id>/edit`. The deep link works with the correct order. A wrong assumption, corrected by watching the application instead of arguing with it.
+
+### 5. The edit form loads blank
+
+This was the most consequential finding. After fixing the route, the edit tests still failed: on the edit form, Submit stayed disabled. I inspected the form and found every field empty. **The edit form does not pre-populate the record's existing values.** To save an edit, a user has to re-enter every required field from scratch. That is a real usability defect, and it dictated the test: re-fill the whole form, then apply the one change.
+
+```ts
+// The edit form loads blank (it does not pre-populate existing values), so
+// re-enter every required field, then apply the change.
+const editForm = new EntityFormPage(page, cfg);
+await editForm.fillValid(`${s}e`, fkIds);
+await editForm.fillControl(upd.kind, upd.label, upd.value);
+```
+
+### 6. A composite-unique check that collides with the record itself
+
+The re-fill in finding 5 introduced a new failure, but only for TagAffinity. Re-entering a record's own `profileId` and `tag` — values that uniquely identify the record being edited — tripped a duplicate-key check, as if the record were colliding with itself. Profile, which also has a composite unique constraint, did not have the problem; TagAffinity's check does not exclude the current record. The note in the code is the suffix `${s}e` above: re-enter the required fields with a *distinct* value so nothing collides with the record's own keys. The underlying inconsistency — one entity's uniqueness check excludes self, another's does not — is a finding for the application team.
+
+### 7. The list does not render reliably, so navigate by id
+
+The update tests then went *flaky* — different entities failing on different runs. The cause was the step where I found the just-created row in the list by its text and clicked Edit. The application's list view is unreliable: it had earlier flashed a banner reading "Completed with issues: 473 warnings — 1 of 470 entities processed successfully." A list that does not dependably render every row is not a dependable place to find a row. The fix was to stop scanning the list entirely and navigate straight to the record by id, using the route I had learned:
+
+```ts
+// Open the record's edit form directly by id.
+await page.goto(`${cfg.route}/${newId}/edit`);
+```
+
+### 8. The backend mishandles concurrent writes
+
+Even after that, one update test would occasionally fail across a full parallel run — a different one each time — while passing five-for-five in isolation. That signature is unmistakable: the tests are correct, and the shared system underneath cannot take the concurrency. Four Playwright workers issuing concurrent creates and edits produced intermittent backend failures. I made the suite deterministic and recorded the reason where the next reader will find it:
+
+```ts
+// The events backend mishandles concurrent writes (parallel create/edit races
+// produce intermittent failures), so the mutating CRUD/update tests run
+// serially. A single worker keeps the whole suite deterministic (~17s).
+fullyParallel: false,
+workers: 1,
+```
+
+A single worker plus one retry, and the suite went green and stayed green — 41 for 41, run after run. **When a test passes alone and flakes in a parallel suite, suspect the shared system before the test; "flaky under concurrency" is often a real defect in the thing under test.**
+
+## Mutating tests must restore what they touch
+
+The CRUD and update tests create real records in a live database. That is only acceptable if they clean up perfectly. Every created record is registered with an auto-cleanup fixture that deletes it on teardown regardless of whether the test passed:
+
+```ts
+export const test = base.extend<{ created: Created[] }>({
+  created: async ({ request }, use) => {
+    const items: Created[] = [];
+    await use(items);
+    for (const { entity, id } of items) {
+      await deleteById(request, entity, id);
+    }
+  },
+});
+```
+
+After every run — headless, headed, parallel, serial — I checked all eight entity counts against their baseline. User stayed at 470, Account at 113, and so on down the list, every time. The validation tests never submit, so they write nothing at all; the mutating tests create and then remove. **Live-mutation tests are a promise to leave the system exactly as you found it; verify the baseline, do not assume it.**
+
+## Getting to deterministic green, then watching it
+
+The arc in numbers was 30 passing, then 36, then 40, then 41 — each step a failure understood and encoded. Then I ran it headed, single-worker, so the browser opened and drove the whole thing visibly: the dashboard loading, every entity's list, the create forms filling and submitting, the edit forms, the validation gating, the security checks. Forty-one tests, 32 seconds, and the database back at baseline afterward. There is something clarifying about watching an agentic test suite actually click through an application it figured out by exploration.
+
+## CI for a suite that needs a live app
+
+The last request was a CI workflow. This is where honesty matters, because the UI suite needs the full stack — MongoDB, the FastAPI backend, the Angular frontend — and that application lives in a separate repository with no public deployment. A stock GitHub runner cannot start it. Pretending otherwise would produce a workflow that is red forever and teaches nothing.
+
+So the workflow has two jobs. A `verify` job runs on every push: it type-checks the suite and collects all 41 tests without executing them. No running app required, and it catches the things that actually regress — a broken import, a type error, a malformed spec. It ran green in 19 seconds on the first push. A second `e2e` job is opt-in via `workflow_dispatch`, parameterized with `UI_BASE_URL` and `EVENTS_BASE_URL`, ready to run the full suite the moment the stack is reachable — on a self-hosted runner or a deployed environment.
+
+```yaml
+jobs:
+  verify:        # every push: type-check + collect, no app needed
+    ...
+  e2e:           # opt-in: full run against a reachable stack
+    if: github.event_name == 'workflow_dispatch'
+    ...
+```
+
+**A CI workflow should be honest about its dependencies.** A job that cannot pass in the environment it runs in is worse than no job; a job that does the meaningful work the environment *can* support, and clearly gates the rest, is a real safety net. The inputs flow through environment variables rather than into shell commands, so the parameterization does not open an injection hole.
+
+## Patterns worth carrying forward
+
+**Discover before you assert.** Driving the live app through a browser first — learning the real selectors, the real validation, the real routes — turned guesswork into fact. Most of the eight failures came from an assumption I could have avoided by looking first; the rest I could only learn by looking.
+
+**Treat failures as findings.** Every red test in this build was the application stating a truth: an unlabelled control, a broken validator, a blank edit form, a list that drops rows, a backend that cannot serialize writes. A test suite that argues with the app loses. A test suite that listens to it documents the app.
+
+**Navigate by identity, not by scanning.** When a list view is unreliable, do not search it for a row. If the system gives you a stable handle — an id, a canonical URL — use it. It removed an entire class of flakiness.
+
+**Restore what you mutate, and prove it.** The cleanup fixture plus a baseline check after every run is the whole discipline. The database ended every run exactly as it began.
+
+**Know when generation is a skeleton.** The auto-generated scaffolds gave structure and traceability and zero real assertions. Recognizing that, and hand-authoring the part that verifies behavior, is where the value was.
+
+**Serialize when the system cannot take concurrency.** Parallelism that flakes is not a test problem to paper over with retries alone; it is a signal. One worker made the suite deterministic and made the concurrency defect explicit in a comment.
+
+**Make CI honest.** Run the meaningful check the runner can support on every push; gate the part that needs an environment the runner does not have. Do not ship a workflow that is structurally red.
+
+## What shipped
+
+Two runnable suites now stand against the live application: the API suite from the earlier work, and this UI suite — 41 Playwright tests across all eight entities, covering the dashboard, list views, create-form validation, full create/read/update/delete round-trips with verified cleanup, and the security-relevant UI behaviors. Both are committed, both run green, and the UI suite has a CI workflow that is green on every push and ready to run the full thing the day the stack is deployable.
+
+The quieter result is the one that matters for quality. The act of building these tests surfaced, as a byproduct, a catalogue of the application's own behaviors: unlabelled inputs, a broken URL rule, an inconsistent uniqueness check, a non-pre-populating edit form, an unreliable list, and a backend that fails under concurrent writes. None of that came from a checklist. It came from an agent trying to make honest tests pass against an honest application, and writing down everything the application said back.
