@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-test("blog index lists all fifteen posts newest first", async ({ page }) => {
+test("blog index lists all sixteen posts newest first", async ({ page }) => {
   await page.goto("/blog/");
   await expect(page.getByRole("heading", { level: 1, name: /notes on testing/i })).toBeVisible();
 
   const titles = await page.getByRole("heading", { level: 2 }).allTextContents();
-  expect(titles[0]).toMatch(/Two free, full-stack test automation frameworks/i);
-  expect(titles).toHaveLength(15);
+  expect(titles[0]).toMatch(/Test Commander against a live API/i);
+  expect(titles).toHaveLength(16);
 });
 
 test("category filter narrows the post list", async ({ page }) => {
@@ -46,7 +46,7 @@ test("home renders the three most recent posts in Latest writing", async ({ page
   });
   const titles = await section.getByRole("heading", { level: 3 }).allTextContents();
   expect(titles).toHaveLength(3);
-  expect(titles[0]).toMatch(/Two free, full-stack test automation frameworks/i);
+  expect(titles[0]).toMatch(/Test Commander against a live API/i);
 });
 
 test("rss.xml is served with all post URLs", async ({ page }) => {
@@ -55,6 +55,7 @@ test("rss.xml is served with all post URLs", async ({ page }) => {
   const body = await response.text();
   expect(body).toContain("<rss");
   for (const slug of [
+    "test-commander-from-swagger-to-quality-gate",
     "test-automation-reference-implementations",
     "test-commander-after-phase-4-hands-on-tour",
     "test-commander-phase-3-five-helpers-shared-synthesizer",
@@ -80,8 +81,8 @@ test("feed.json validates as JSON Feed 1.1 and lists the posts", async ({ page }
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(body.version).toBe("https://jsonfeed.org/version/1.1");
-  expect(body.items).toHaveLength(15);
-  expect(body.items[0].url).toContain("/blog/test-automation-reference-implementations/");
+  expect(body.items).toHaveLength(16);
+  expect(body.items[0].url).toContain("/blog/test-commander-from-swagger-to-quality-gate/");
 });
 
 test("sitemap.xml includes every blog post route", async ({ page }) => {
@@ -89,6 +90,7 @@ test("sitemap.xml includes every blog post route", async ({ page }) => {
   expect(response.status()).toBe(200);
   const body = await response.text();
   for (const slug of [
+    "test-commander-from-swagger-to-quality-gate",
     "test-automation-reference-implementations",
     "test-commander-after-phase-4-hands-on-tour",
     "test-commander-phase-3-five-helpers-shared-synthesizer",

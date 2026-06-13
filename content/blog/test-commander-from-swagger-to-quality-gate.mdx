@@ -1,0 +1,238 @@
+---
+title: "Test Commander against a live API: from a Swagger URL to a failing quality gate"
+slug: "test-commander-from-swagger-to-quality-gate"
+excerpt: "A user dropped a single Swagger URL and asked for testing. In one session, Test Commander drove the full pipeline against a live FastAPI app: ingest five knowledge sources, review requirements, run three live exploration charters through Playwright MCP, generate BDD, ship a runnable regression suite, and produce an evidence-backed quality report. The result was not a green dashboard. It was a FAIL gate backed by six reproducible defects, two of them critical security bugs, and one clean root cause underneath all of them."
+publishedAt: "2026-06-13"
+categories:
+  - "Agentic Testing"
+  - "Test Automation"
+  - "Quality Strategy"
+tags:
+  - "test-commander"
+  - "session-walkthrough"
+  - "exploratory-testing"
+  - "playwright-mcp"
+  - "bdd"
+  - "automated-regression"
+  - "quality-report"
+  - "security-testing"
+  - "fastapi"
+  - "agents"
+  - "claude-code"
+---
+
+The previous Test Commander posts were build logs: one per phase, written from inside the tool's own development. This one is the opposite. Here the tool is finished enough to use, and the only thing supplied was a URL. The user said, in effect, "the Swagger is at `http://127.0.0.1:5500/docs` — test it." Everything that follows is what Test Commander produced from that single pointer, end to end, against a live application it had never seen.
+
+The application under test is a small but real system: a FastAPI events backend (call it EventMan) backed by MongoDB, with an Angular admin UI, generated from a schema-to-REST framework. It exposes CRUD over eight entities — Account, User, Profile, TagAffinity, Event, UserEvent, Url, Crawl — plus a metadata endpoint. Nothing about it is contrived for a demo. It has real records, real validation, and, as it turned out, real defects.
+
+The headline result is worth stating up front, because it is the opposite of the usual agentic-testing demo. The session did not end on a green dashboard. It ended on a **FAIL quality gate**, backed by six reproducible defects — two of them release-blocking security bugs — and a single root cause underneath all six. The positive result being showcased is not that the app passed. It is that an agent, given a URL and a pipeline, found the bugs a real team would want found, proved each one against the running system, wrote a regression suite that fails on exactly those bugs and passes on everything that works, and handed back a quality report a release manager could act on. That is the capability. The app failing is the evidence the capability is real.
+
+## The pipeline came first
+
+Test Commander is a structured workspace under `.test-commander/` plus a set of `/tc:*` commands that fill it in. The session followed the tool's own intended order, each stage feeding the next:
+
+| Stage | Command(s) | Output |
+| --- | --- | --- |
+| Knowledge | `/tc:learn-from-specs`, `-api`, `-code`, `-tests`, `-docs` | `product-knowledge/` model from five sources |
+| Requirements | `/tc:review-requirements`, `/tc:requirements-to-tests` | 33 reviewed requirements + test-idea seeds |
+| Exploration | `/tc:create-charter`, `/tc:explore`, `/tc:session-summary` | three live charters, evidence, candidate scenarios |
+| Specification | `/tc:generate-bdd` | Gherkin features, traceability |
+| Automation | `/tc:automation-plan`, `/tc:automate` (+ hand-authored suite) | runnable PyTest + generated scaffolds |
+| Reporting | `/tc:run`, `/tc:quality-report`, `/tc:quality-gate` | run record, quality report, PASS/WARN/FAIL verdict |
+
+None of this required telling the tool what the app was. The first stage discovered that.
+
+## Stage 1: teaching the tool the system from five sources
+
+The spec lived at `http://127.0.0.1:5500/openapi.json`. I saved it into the workspace and ran `/tc:learn-from-specs`. It exited zero and wrote nothing. The model stayed at its empty-stub state.
+
+The cause was a naming rule, not a parse failure. The spec helper detects OpenAPI JSON by the globs `openapi.json` and `*.openapi.json` — the suffix has to be a literal `.openapi.json` with a dot. I had saved the file as `events-api-openapi.json`, with a hyphen, so the glob never matched and the helper silently skipped it.
+
+```sh
+# skipped: hyphen, not a dot before "openapi"
+events-api-openapi.json
+# detected:
+events.openapi.json
+```
+
+**A silent zero-exit no-op is worse than an error; when an ingestion command "succeeds" with no output, confirm the artifact actually populated before trusting it.** Renamed, re-run, and the spec-derived model came alive: 41 endpoints, 36 schemas, every one carrying file:line provenance back to the source.
+
+Four more sources followed. `/tc:learn-from-api` ingested recorded live responses. `/tc:learn-from-code` parsed the FastAPI source — copied into the workspace because the helper resolves a path relative to the workspace, then walks it with stdlib `ast`. `/tc:learn-from-tests` read the project's existing pytest. `/tc:learn-from-docs` ingested the design document.
+
+The single most useful discovery was that the live `/api/metadata` endpoint returns a richer model than the OpenAPI spec. It is the authoritative source: every field's type, required flag, length bounds, regex patterns, enums, numeric ranges, uniqueness constraints, relationships, and a per-entity `operations` string. For the User entity it spelled out `netWorth` as a currency bounded `0..10000000`, `gender` as an enum of `male/female/other`, uniqueness on `username` and `email`, and `operations: "rcu"` — read, create, update, but no delete. That metadata became the test-design bible for everything downstream. The spec told us the shape of the API; the metadata told us the rules it was supposed to enforce.
+
+## Stage 2: requirements, and a mistake I made in the input
+
+The app's requirements were a Word document — an eight-phase EventMan plan covering crawling, multi-user data, an AI recommender, billing, and a REST API with auth. I converted it and authored 33 atomic `REQ-NNN` statements grounded in the source, then ran `/tc:review-requirements`.
+
+The first run reported 137 findings across six dimensions. That looked thorough until I read the breakdown: 64 of the 137 were `consistency` findings, almost all of the form "opposing modals over shared subject(s) ... with REQ-014." That is a contradiction signal, and the volume was implausible. The cause was in my input, not the tool. I had embedded source citations inside every requirement body:
+
+```markdown
+REQ-004: The system shall expose all data through a REST API. (Operating environment, src:92-94)
+```
+
+The consistency check tokenizes requirement bodies and pairs requirements that share salient tokens. The citation words — `src`, `environment`, `operating` — became shared subjects across nearly every requirement, and REQ-014 (a "TBD ... shall be resolved" requirement) opposed all of them. The fix was to strip the provenance out of the parsed body and keep it in a separate reference file:
+
+```markdown
+REQ-004: The system shall expose all data through a REST API using a client/server model.
+```
+
+Re-running dropped the count from 137 to 79 and the spurious `consistency` dimension from 64 to **0**. The real signal was now visible: a `risk` flag on the plaintext-password requirement, `data-rules` flags on unconstrained token auth, a `roles-permissions` flag on delete-without-a-role, six compound requirements to split, and a blanket "no negative or edge cases specified" across all 33.
+
+**A finding count is not a quality signal until you have read the dimension breakdown; a flood in one dimension usually means the input is polluting the heuristic, not that the system is broken.** This was my error, caught by reading the output instead of trusting the number. `/tc:requirements-to-tests` then seeded one test-idea file per requirement, each pre-tagged with that requirement's review findings, plus a traceability map.
+
+## Stage 3: three live exploration charters
+
+This is where the tool earns its keep. `/tc:create-charter` produced three charters grounded in what we had learned, not boilerplate: CH-001 for authentication and credential handling, CH-002 for user CRUD and field validation, CH-003 for the six untested entities and relationship integrity. Then `/tc:explore` drove them against the live app through Playwright MCP.
+
+### CH-001: there is no front door
+
+The frontend loaded straight to a full admin dashboard. No login. Every entity manageable, unauthenticated. The API agreed:
+
+```sh
+curl http://127.0.0.1:5500/api/user   # 200, full user list, no Authorization header
+```
+
+Then the credential finding. The user payload includes a `password` field on every record:
+
+```python
+records = api.records(api.get("/api/user")[1])
+offenders = [r for r in records if "password" in r]
+# offenders == every record; the field is present in the response body
+```
+
+The value was masked to zeros, not omitted — and the mask was 50,193 zero-characters per record. Across 470 users, a single `GET /api/user` response is roughly 20 MB of pure masking filler. So one exploration charter produced three findings: no authentication, a password field exposed in responses, and a 20 MB payload-bloat defect, each captured with a screenshot and the response body as evidence.
+
+### CH-002: validation works, integrity does not
+
+CH-002 probed the metadata constraints directly. I posted users that each violated one rule, with everything else valid, and the API rejected every one with a precise `422`:
+
+```text
+422 Invalid netWorth: Input should be less than or equal to 10000000
+422 Invalid gender:   Input should be 'male', 'female' or 'other'
+422 Invalid username: String should have at least 3 characters
+422 Invalid email:    String should match pattern '...'
+```
+
+Field validation was, frankly, excellent. Then I posted a user whose `username` duplicated an existing one, with everything else valid. It returned `200` and created a second record. After the call, two users shared a username the metadata declared unique. Uniqueness was not enforced.
+
+Cleaning up that record exposed a second defect: `DELETE /api/user/<id>` returned `200` and deleted, even though the metadata declares User as `rcu` — no delete. The declared operation set was decorative.
+
+A discipline note matters here. These probes mutate a live database. The exploration snapshotted entity counts before and after, and every record a probe created was deleted on teardown. The user count started at 470 and ended at 470. **Tests that mutate a live system must restore it; snapshot the count, clean up in teardown, and verify the baseline before you call the session done.**
+
+### CH-003: orphans accepted on every relationship
+
+CH-003 took the same approach to the six untested entities and to referential integrity. Field validation held again — affinity bounded `-100..100`, rating `1..5`, cost `>= 0`, all rejected when violated. But:
+
+```python
+# Profile.userId is a required ObjectId reference to a real User
+api.post("/api/profile", {"name": "tc_orphan", "userId": "000000000000000000000000"})
+# -> 200, orphan created; no such user exists
+```
+
+Both relationship probes — Profile referencing a non-existent user, UserEvent referencing a non-existent user and event — returned `200` and created orphans. And `POST /api/crawl` succeeded despite Crawl being declared `rd`, no create. Same pattern as CH-002, now confirmed across the whole entity set.
+
+By the end of exploration there was a clear shape to the findings, and `/tc:session-summary` turned each session's note into candidate scenarios mapped back to requirements.
+
+## Stage 4: BDD, and knowing when the generator is not enough
+
+`/tc:generate-bdd` ran the full enrichment-to-Gherkin pipeline and produced 29 feature files. They were not useful as written, and the post would be dishonest if it claimed otherwise. Two problems were visible. The step bodies were deterministic placeholders. And the enrichment cross-reference had over-matched: it mapped each session's candidate scenarios to nearly every requirement by keyword overlap, so the uniqueness feature and the password feature came out with the same scenario set.
+
+So I hand-authored the feature that mattered, writing each confirmed defect as its intended behavior — a failing specification:
+
+```gherkin
+@defect @req:REQ-009
+Scenario: Duplicate username is rejected
+  Given a user already exists with username "tc_dupe_user"
+  When a second user is POSTed with username "tc_dupe_user" and an otherwise valid body
+  Then the response status is 409
+  And no second user with username "tc_dupe_user" exists
+  # ACTUAL: returns 200 and creates a duplicate; uniqueness not enforced.
+```
+
+**Auto-generated BDD is a traceability skeleton, not a specification; the behavior-level scenarios that pin a defect are still worth writing by hand.** Ten scenarios captured the eight findings: six `@defect` specs for the confirmed bugs and four `@passing` outlines guarding the field validation that works.
+
+## Stage 5: automation that actually runs
+
+Test Commander's `/tc:automate` generates Playwright/TypeScript scaffolds. I ran it for completeness — it produced 29 specs, 29 page objects, an automation map — but the bodies are no-op placeholders (`await expect(page).toHaveURL(/.+/)`), and the app under test is API-level Python. So the real automation was a hand-authored PyTest suite that translates the curated feature and runs against the live API with nothing but the standard library.
+
+The pattern that makes it a clean executable bug report is `xfail`. The validation guards assert and pass. The defect specs assert the intended behavior — and are marked expected-failure, so the suite stays green while listing each bug, and a fix flips it to an unexpected pass:
+
+```python
+@pytest.mark.xfail(strict=False, reason="CH-002: username uniqueness not enforced; duplicate create returns 200")
+def test_duplicate_username_rejected(api, refs, cleanup):
+    first = _valid_user(refs)
+    s1, p1 = api.post("/api/user", first)
+    cleanup.append(("user", api.id_of(api.first(p1))))
+    dupe = _valid_user(refs, username=first["username"])
+    status, payload = api.post("/api/user", dupe)
+    if status in (200, 201):
+        cleanup.append(("user", api.id_of(api.first(payload))))
+    assert status == 409, f"duplicate username should be 409, got {status}"
+```
+
+Run against the live backend, the suite reported **10 passed, 6 xfailed** — every validation guard green, every defect tracked. A `cleanup` fixture deleted the records the defect probes created, and the entity counts returned to baseline.
+
+A worthwhile aside on the tool's own review: `/tc:review-automation` passed all 29 generated TS scaffolds with zero findings. That is a true result against its rubric — the rubric checks structure (provenance comments, presence of an `expect()`, no hardcoded waits) — but it is a structural lint, not a semantic one. A `pass` there means "well-formed scaffold," not "meaningful test." **A green review verdict is only as strong as what the rubric inspects; know whether your automation review is checking structure or behavior before you trust its color.**
+
+## Stage 6: the run, the report, and a bug in my own glue code
+
+`/tc:run` ingests a Playwright-shaped JSON report and writes a run record. To feed it the PyTest results faithfully — with the defects shown as failures, not hidden as xfails — I ran the suite with `--runxfail`, captured JUnit XML, and wrote a small converter. The first conversion reported `16 passed, 0 failed`, which was wrong, and a Python `DeprecationWarning` pointed straight at the cause:
+
+```python
+# broken: an empty <failure> Element is falsy, so `or` skips it
+node = tc.find("failure") or tc.find("error")
+# fixed: test identity explicitly
+f = tc.find("failure"); e = tc.find("error")
+node = f if f is not None else e
+```
+
+An XML element with no children is falsy, so `find("failure") or find("error")` discarded real failures and classified every defect as a pass. The fix is the explicit `is not None` test the warning recommends. Corrected, the run recorded `10 passed, 6 failed`, traced to REQ-007, 009, 013, 016, 018, and 027.
+
+**An XML element's truth value is not "does it exist"; never gate on `find(...) or find(...)`, test `is not None`.** This was my bug, in my glue, caught by an anomalous all-green count and a language warning — the same discipline the requirements stage needed.
+
+`/tc:quality-report` rolled the run into a report with a "Known defects" table derived straight from the failures, and `/tc:quality-gate` returned the verdict:
+
+```text
+quality gate: FAIL
+  pass rate:      0.62  (>= 1)  -> FAIL
+  failed tests:   6     (<= 0)  -> FAIL
+  flaky tests:    0     (<= 0)  -> PASS
+  open questions: 0     (<= 0)  -> PASS
+```
+
+Exit code 1. CI-ready. A release manager reading that gets a decisive answer, not a vibe.
+
+## The static review that found one more, and the honesty of "inconclusive"
+
+A background security review of the committed code surfaced three issues beyond the six confirmed dynamically. The most serious was new: the `?view=` FK-expansion parameter calls `model_dump()` on a related entity — which includes `password` — with no field allowlist. A second potential path to disclose a password.
+
+I tried to confirm it live: request a Profile and ask it to expand its `user` foreign key including the `password` field. The expansion fired, but the related object came back as `{exists: false}` — the sampled profiles were orphans (a symptom of the referential-integrity defect), so the foreign key never resolved and no field could leak. I recorded it as static-credible, dynamically inconclusive, with the exact follow-up needed: a Profile whose `userId` resolves.
+
+**"Inconclusive" is a real and honest test result; report the code path, the attempted reproduction, and the condition that would confirm it, rather than upgrading a static finding to a confirmed one you did not actually observe.** The quality report carries it as a supplementary static finding, clearly separated from the six dynamic defects.
+
+## The one root cause
+
+Six defects, and they are not six unrelated bugs. The schema-driven generator that builds EventMan's models and routes enforces every **field-level** constraint flawlessly — length, enum, regex, range, required, all returning crisp `422`s across four entities. It enforces **no higher-order constraint at all**: not authentication, not credential serialization, not uniqueness, not referential integrity, not the declared operation scope. That is one gap in the generator, expressed six ways. It is the most useful sentence in the entire report, because it turns a six-item defect list into a single, high-leverage fix.
+
+## Patterns worth carrying forward
+
+**Discover the system, do not be told it.** The most valuable model in the whole run came from an endpoint the spec did not fully describe. A knowledge stage that reads the live system, not just its documentation, finds the rules the documentation omits.
+
+**Write defects as intended behavior.** A `@defect`-tagged scenario or an `xfail` test states what should be true and fails because it is not. The suite stays green, the bug list is explicit, and the day a fix lands the test flips loudly to an unexpected pass. The regression suite becomes the acceptance criteria for the fixes.
+
+**Restore what you mutate.** Live exploration that creates records must delete them and verify the baseline. Snapshot-before, cleanup-in-teardown, assert-after. The user's database ended exactly as it started.
+
+**Read the breakdown, not the count.** Both the requirements review and the test run produced a number that was misleading until I looked at its composition — a polluted dimension in one, an inverted truth-test in the other. The total is a headline; the breakdown is the signal.
+
+**Auto-generation is a skeleton; curation is the muscle.** The generated BDD and the generated TS specs gave real traceability structure and zero real assertions. Knowing the difference — and hand-authoring the handful of scenarios and tests that actually verify behavior — is where an agent adds value over a template.
+
+**Know what your review rubric inspects.** A green `/tc:review-automation` on no-op scaffolds is a true structural result and a false quality signal. Color is only as trustworthy as the checks behind it.
+
+**A FAIL gate with evidence is a success.** The point of the pipeline is a decision a human can stand behind. Six reproducible defects, traced to requirements, backed by a runnable suite and a CI-ready exit code, is the tool working exactly as intended.
+
+## What shipped
+
+The session committed a complete, evidence-backed quality assessment to the project repository: the full `.test-commander/` workspace, a runnable PyTest suite (`automation/`, 10 pass / 6 fail), the generated TS traceability scaffolds, a `DEFECT-HANDOFF.md` with per-defect reproduction and remediation, and a `QUALITY-REPORT.md` capstone — verdict, scope, coverage, results by area, the six dynamic defects plus three static findings, root cause, and a do-not-ship sign-off. A developer on the EventMan team can clone it, read the handoff, run the suite against their stack, and watch each test flip green as they fix the underlying gap.
+
+That is the demonstration. Given a URL and a pipeline, the tool went from a Swagger link to a defensible release decision — and the decision was no, with six reasons and the receipts to back each one. The next natural step is to point it at a system whose generator already enforces those higher-order rules, and watch the same gate come back green for the right reasons.
