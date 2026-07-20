@@ -1,0 +1,193 @@
+---
+title: "Marketing Commander"
+slug: "marketing-commander"
+summary: "An autonomous marketing intelligence platform for artists - built greenfield with Test Commander reviewing every phase, mostly autonomously."
+categories:
+  - "Agentic Workflows"
+  - "QA Strategy"
+technologies:
+  - "Python"
+  - "FastAPI"
+  - "Next.js"
+  - "PostgreSQL"
+  - "Redis"
+  - "Docker Compose"
+  - "Claude API"
+  - "pytest"
+status: "Active"
+order: 4
+---
+
+## Overview
+
+Marketing Commander is an autonomous marketing intelligence platform that
+runs a continuous marketing lifecycle: goals, strategy, campaigns,
+content, publishing, analytics, learning, better strategy. The first
+customer is CYR3NT, a melodic techno artist, and every MVP capability is
+validated against one concrete journey: moving an unknown artist toward
+being signed. The MVP is a locally runnable, single-workspace release in
+which a human approves every generated artifact and approved versions are
+immutable.
+
+The project is equally an experiment in process: it is being built
+greenfield with [Test Commander](/test-commander/) attached from the
+first commit - in fact, from before the first commit - acting as a
+mostly autonomous quality function. That side of the story gets its own
+section below.
+
+## Problem
+
+Independent artists have a full-time marketing job on top of making
+music: identity positioning, campaign strategy, a content calendar that
+never stops, and analytics nobody has time to read. Generic AI content
+tools generate posts but hold no strategy, learn nothing from outcomes,
+and give the artist no governance over what goes out under their name.
+
+## Users
+
+The first user is a single artist workspace (CYR3NT) operated by its
+owner. The design generalizes to solo artists and small artist teams who
+want agent-generated strategy and content with human approval on
+everything that represents them publicly.
+
+## Goals
+
+- Ship the canonical golden path: create workspace, create artist,
+  complete and approve the Artist Identity Profile, generate a campaign
+  brief, generate a 30-day content plan, review, approve, export.
+- Keep humans in control: every generated artifact requires explicit
+  approval; approved versions are append-only and immutable.
+- Govern cost before dispatch: per-run, per-campaign, and monthly caps
+  with warn-at-80, block-at-100 semantics.
+- Hold generation to a numeric quality gate: 100% schema-valid output,
+  zero fabricated facts, at least 70% of artifacts approved without
+  substantive edits.
+- Prove that a greenfield AI product can carry a serious quality
+  discipline from day zero instead of bolting one on later.
+
+## Architecture
+
+<Diagram caption="Five-service local stack: web and api in front, worker on the queue, Postgres and Redis behind">
+  Next.js web -> FastAPI api -> PostgreSQL (single source of truth) with
+  Redis backing a Python worker that runs agent generation jobs; all five
+  services orchestrated by Docker Compose with health-gated startup.
+</Diagram>
+
+A monorepo with an enforced shape. The FastAPI backend is layered
+transport, domain, persistence - and the layering is not a convention
+but a test: an AST-based import-direction check fails the build if domain
+code imports transport or persistence. Six ADRs pin the load-bearing
+decisions: PostgreSQL as the single operational source of truth,
+optimistic concurrency with explicit saves, a provider-neutral LLM
+interface (Anthropic as reference provider), and append-only immutable
+approved versions enforced at both the repository and database-role
+layers. Every logical agent run is recorded separately from each provider
+attempt, so any artifact can be traced to the prompt version and attempt
+that produced it.
+
+## Technologies
+
+<TechList items={["Python 3.14", "FastAPI", "SQLAlchemy 2", "Alembic", "Next.js 16", "React 19", "TypeScript", "PostgreSQL 18", "Redis 8", "Docker Compose", "pytest", "ruff", "GitHub Actions", "PDM"]} />
+
+## Testing Strategy
+
+The application carries its own harness from the foundation up: pytest
+suites for config, error envelopes, and health probes; a migration test
+that upgrades a scratch database from empty and walks it back down; an
+integration readiness check that skips visibly instead of silently when
+services are down; and compose-contract tests asserting every service has
+a pinned image and a healthcheck. A documentation-validation suite treats
+the plan and requirements as testable artifacts - link resolution,
+canonical golden-path identity, and a ban on ambiguous language all run
+in CI. The same `make check` gate runs locally and in GitHub Actions, so
+the two cannot diverge.
+
+## How Test Commander Tests This Project
+
+Marketing Commander is the first project with Test Commander embedded as
+a mostly autonomous quality function, and the arrangement is unusual
+enough to document. When the engagement started, the application repo had
+zero commits - the quality work began at the requirements, before any
+code existed.
+
+What runs autonomously, with no human in the loop:
+
+- The full requirements pipeline. Test Commander reviewed 51
+  requirements, 18 user stories, and 25 acceptance criteria, producing
+  587 mechanical findings across seven quality dimensions. Its judgment
+  layer then root-caused the bulk as false positives (440 of 460
+  consistency flags traced to uniform metadata vocabulary) and distilled
+  the signal to 1 Major and 5 Minor findings. The Major - a priority
+  inversion where a Should-level requirement was a dependency of a
+  Must-level one - was confirmed fixed in a re-run, and all six closed.
+- Seeding the test surface: one structured test-idea file per
+  requirement, 52 in all, each with happy, edge, and negative candidate
+  scenarios, plus a coverage map showing 51 of 51 requirements covered.
+- Independent execution-based verification, commit by commit. Test
+  Commander monitors the app repo and re-runs the gates itself: clean
+  clones, `make check`, Docker Compose cold starts, endpoint probes,
+  migration up-and-down cycles, and negative-case injection such as
+  stopping Redis to watch readiness degrade.
+- Formal phase-exit reviews. Phases 2, 3, and 4 each closed with a
+  written review and a PASS verdict, authored autonomously.
+
+That autonomy has caught real defects the developer-side gates missed: a
+health-parsing check that used a substring match, so `unhealthy` counted
+as healthy - found by negative-case injection and recorded with an
+honest addendum correcting an earlier zero-findings verdict - and a
+hosted CI configuration that hung for ninety minutes because harness
+dependencies were never installed while local gates stayed green.
+
+Where the human stays in the loop: product decisions and phase
+sign-offs. The ten scope-defining decisions were approved on explicit
+Product Owner instruction, remediations are applied on instruction, and
+no finding closes a phase without the owner's gate. Exploration
+charters, BDD generation, and Test Commander-authored automation are
+queued to activate as the first product UI lands - the workspace
+directories for them are in place, still empty, which is itself an
+honest quality signal: the artifacts appear when the phases actually
+run.
+
+## AI Role
+
+Two layers of AI, both governed. In the product, agents generate campaign
+briefs, content pillars, and 30-day calendars - but only from an
+approved identity profile, only within cost caps checked before dispatch,
+and only into a human review queue; artifact text is treated as untrusted
+input with prompt-injection defenses required from the first AI phase. In
+the process, an AI test commander reviews requirements, verifies builds,
+and writes exit reviews - while the Product Owner holds every
+scope-defining approval.
+
+## Challenges
+
+- Mechanical review noise. A 587-finding review is unusable raw; the
+  work was building a judgment layer that root-causes false-positive
+  families instead of dismissing them one at a time, and feeding those
+  lessons back into the review vocabulary.
+- Keeping a greenfield honest. An early phase review reported zero
+  findings and was later corrected with an addendum when a defect
+  surfaced in covered code - recording the correction mattered more
+  than the original verdict.
+- CI parity. Local green plus hosted CI hanging is a process defect,
+  and it was treated and closed like one.
+
+## Results
+
+Phases 1 through 4 are complete, each behind a formal PASS exit review:
+product boundary, repository and CI foundation, the five-service Docker
+runtime, and the FastAPI backend foundation with 22 passing API tests.
+Requirements coverage stands at 51 of 51 with seeded test ideas, a
+40-test acceptance plan marks 16 of them release-gating, and two real
+defects were found and fixed by autonomous verification before any
+product feature existed.
+
+## Next Steps
+
+- Phase 5: the workspace and artist domain - the first product
+  endpoints and the first Playwright golden-path test.
+- Activate Test Commander's exploration charters, BDD generation, and
+  automation phases as the UI appears, and promote the false-positive
+  lessons through its governed learning loop.
+- Toward the MVP: the AIP editor, artifact versioning, the AI provider
+  foundation, and the campaign generation workflow, phase by phase.

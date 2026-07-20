@@ -30,3 +30,7 @@ Performance scoring (Lighthouse / PageSpeed Insights) is out of scope for automa
 - Unit tests go under `tests/unit/`, file extension `.test.ts` or `.test.tsx`. They use `vitest` + `@testing-library/react`. Common matchers come from `@testing-library/jest-dom` (already wired in `tests/unit/setup.ts`).
 - E2E tests go under `tests/e2e/`, file extension `.spec.ts`. They use Playwright. A test is treated as an a11y check if its title contains `@a11y` and it lives under `tests/a11y/`.
 - A11y tests use `@axe-core/playwright`. Filter violations to `serious` or `critical` impact and assert the resulting array is empty. WCAG tags: `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`.
+
+## Known environment pitfalls
+
+- **Every unit test fails with `window.localStorage` undefined (`TypeError: Cannot read properties of undefined (reading 'clear')` in `tests/unit/setup.ts`).** Node 25+ enables an experimental Web Storage global by default; without `--localstorage-file` it is present-but-unavailable, and it shadows jsdom's own `localStorage` inside the Vitest environment. The `test:unit` script therefore sets `NODE_OPTIONS=--no-experimental-webstorage` (the flag exists since Node 22.4, so it is safe on the CI-pinned Node 24), and the Makefile `unit` target delegates to `npm run test:unit` so the flag applies identically via `make`, npm, and GitHub Actions. If the whole unit suite ever fails on localStorage after a local Node upgrade, check that this flag is still in `package.json` before debugging anything else.

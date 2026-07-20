@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const routes = ["/projects/", "/projects/api-automation-framework/"] as const;
+const routes = [
+  "/projects/",
+  "/projects/api-automation-framework/",
+  "/projects/marketing-commander/",
+] as const;
 const themes = ["light", "dark", "warm"] as const;
 
 for (const path of routes) {

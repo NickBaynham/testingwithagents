@@ -12,7 +12,7 @@
     "lint:md": "markdownlint-cli2",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "test:unit": "vitest run",
+    "test:unit": "NODE_OPTIONS=--no-experimental-webstorage vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

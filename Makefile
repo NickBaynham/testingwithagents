@@ -103,7 +103,7 @@ typecheck: _require-pkg
 	npx tsc --noEmit
 
 unit: _require-pkg
-	npx vitest run
+	npm run test:unit
 
 e2e: _require-pkg
 	CI=true npx playwright test --grep-invert @a11y
