@@ -5,6 +5,7 @@ const routes = [
   "/projects/",
   "/projects/api-automation-framework/",
   "/projects/marketing-commander/",
+  "/projects/dev-commander/",
 ] as const;
 const themes = ["light", "dark", "warm"] as const;
 

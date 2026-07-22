@@ -1,0 +1,176 @@
+---
+title: "Dev Commander"
+slug: "dev-commander"
+summary: "A Claude Code plugin that imposes a test-first, small-increment build discipline on AI-assisted development - and hands the result off cleanly to Test Commander."
+categories:
+  - "Agentic Workflows"
+  - "QA Strategy"
+technologies:
+  - "Claude Code Plugin"
+  - "Python"
+  - "pytest"
+  - "ruff"
+  - "PDM"
+  - "Make"
+  - "Markdown"
+status: "Active"
+order: 5
+---
+
+## Overview
+
+Dev Commander is an AI-assisted software development agent shipped as a
+Claude Code plugin. It guides a project through scaffold, design, plan,
+implement, review, debug, release, and handoff to Test Commander through
+a family of seventeen `/dc:*` commands. It is the development-side
+counterpart to [Test Commander](/test-commander/) and deliberately
+mirrors its architecture: a disciplined, governed workflow expressed as
+skills and templates rather than a monolithic tool.
+
+Where Test Commander asks "is this correct, and how do we prove it," Dev
+Commander asks "how do we build this in small, tested, reviewable steps."
+The two are designed to compose, and the final section below covers the
+handoff between them.
+
+## Problem
+
+AI coding agents are fast and undisciplined. Left to default behavior
+they write large speculative changes, skip the failing test that proves a
+bug exists, patch symptoms instead of causes, and leave no record of why
+a decision was made. That produces code that looks finished and is hard
+to trust. Dev Commander imposes the discipline a careful engineer would
+apply - test-first, one increment at a time, root-cause before fix,
+decisions journaled - onto the agent itself, so the speed comes without
+the recklessness.
+
+## Users
+
+Developers and engineers using Claude Code who want a structured build
+workflow with an auditable trail. It is the build-side audience that
+pairs with Test Commander's testers: the same person, or the same team,
+wearing the two hats a quality-minded project needs.
+
+## Goals
+
+- Make test-first the path of least resistance: every increment starts
+  with a failing test that fails for the expected reason before any
+  implementation is written.
+- Keep changes small and reviewable: one deliverable, one test cycle, one
+  commit per increment, then stop.
+- Prove problems before fixing them: root-cause-first debugging where
+  guesswork and workarounds do not count as fixes.
+- Govern decisions and lessons: a dated decision journal, and lessons
+  that only change project guidance when a human approves the promotion.
+- Hand off cleanly to a separate testing tool instead of grading its own
+  homework.
+
+## Architecture
+
+<Diagram caption="A skill pack first, runtime second: eleven skills plus templates, with helper scripts only where determinism matters">
+  Repo root is a Claude Code marketplace; the plugin under plugins/dev-commander/
+  ships eleven skill definitions, a workspace template copied by /dc:init, and
+  scaffold templates for three stack families. Only dc-core and dc-release carry
+  Python helpers; every other skill is Markdown guidance the agent executes.
+</Diagram>
+
+The design principle is "a skill pack first, runtime second." The
+repository root is a local plugin marketplace; the installed plugin is
+eleven sibling skill definitions, a set of templates, and a deliberately
+small number of helper scripts. Only two skills - the workspace core and
+the release command - ship Python, on the rule that code exists only
+where determinism matters (counting artifacts, bumping a version across
+manifests). Everything else is Markdown guidance the agent performs, so
+the methodology stays legible and editable rather than buried in code.
+
+Running `/dc:init` creates a committed `.dev-commander/` workspace with
+nine parts: a project file plus directories for the journal, plans,
+increments, reviews, debug records, design docs, learning, and handoff
+bundles. The workspace is the durable memory that makes the workflow
+auditable.
+
+## Technologies
+
+<TechList items={["Claude Code plugin (marketplace + SKILL.md)", "Python 3.12+ (stdlib only)", "pytest", "ruff", "PDM", "GNU Make", "Markdown templates", "Scaffold stacks: Python, Node/TS, Go"]} />
+
+## Testing Strategy
+
+The plugin holds itself to the discipline it preaches. A pytest suite of
+45 tests, each written test-first as its feature shipped, validates the
+marketplace and plugin manifests, guards against emojis and stray
+symbols, and asserts that every skill has correct frontmatter whose name
+matches its directory. A skill verifier (`make verify`) checks every
+`SKILL.md` for valid frontmatter and resolvable local links and exits
+nonzero on any problem. Subprocess-driven tests exercise the four core
+helpers end to end; parametrized tests assert each scaffold stack family
+ships a complete template set with the required Make targets and that a
+fresh scaffold passes its own `make lint test` with zero manual editing.
+`make verify` - ruff, pytest, and the skill verifier - is required before
+every commit.
+
+## AI Role
+
+Dev Commander is an agent harness, so AI does the building - but inside
+rails. The agent writes the failing test, implements one increment,
+reviews against a fixed rubric, and traces a bug to root cause, while the
+methodology constrains how. Humans hold the gates that matter: no branch
+is pushed and no pull request opened without explicit direction, and a
+captured lesson only becomes standing project guidance when a human
+approves its promotion. Candidate lessons never silently rewrite the
+rules.
+
+## Challenges
+
+- Deciding where code belongs. The restraint of shipping helpers for only
+  two skills - and leaving the other nine as Markdown the agent executes -
+  is the central architectural bet: too much code and the methodology
+  ossifies, too little and determinism suffers.
+- Staying domain-agnostic. Shipped defaults use universal
+  software-engineering vocabulary only, so the workflow fits any project
+  rather than leaking one project's nouns into everyone's plans.
+- Handing off without coupling. The handoff had to produce artifacts a
+  separate tool could ingest without Dev Commander ever calling that tool
+  directly - a v0.1 fix corrected the handoff to target the command that
+  can actually read Markdown.
+
+## Results
+
+Version 0.2.0 is shipped and tagged, with phases 0 through 15 complete
+across eighteen tasks: the four-command workspace core, multi-stack
+scaffolding for Python, Node/TypeScript, and Go, and the plan, implement,
+review, debug, design, branch, release, learning, and handoff skills. The
+0.2.0 release itself was cut by Dev Commander's own `/dc:release` command -
+the tool dogfooding its release workflow. The self-test suite stands at
+45 passing tests.
+
+## How Dev Commander Hands Off to Test Commander
+
+Dev Commander builds; Test Commander tests. The two are deliberately kept
+as separate tools that compose through a documented handoff rather than
+one calling the other, so neither grades its own work.
+
+The `/dc:handoff-to-tc` command packages a bundle under the workspace's
+handoff directory containing three Markdown files: a summary of what was
+built and why (linking the source plans, increments, and reviews); a
+feature list with entry points and observable behavior; and acceptance
+criteria written as given/when/then behavior prose, derived from the
+increment tests. The bundle uses universal software-engineering
+vocabulary with no internal jargon, precisely so a different tool can
+read it cold.
+
+Dev Commander does not invoke Test Commander. Instead the handoff ends by
+telling the user which Test Commander commands to run in the consuming
+project - `/tc:learn-from-docs` to ingest the bundle and
+`/tc:review-acceptance-criteria` against the acceptance-criteria file.
+This is the same seam, from the other side, that the [Marketing
+Commander](/projects/marketing-commander/) case study documents: one
+agent produces evidence, a separate agent reviews it, and a human holds
+the gates in between.
+
+## Next Steps
+
+- A prerequisite bootstrap check and user-facing documentation guides
+  (the repo currently has no `docs/` directory yet).
+- CI/CD workflow generation and dependency and security scanning skills.
+- Extending the `/dc:next` recommender to cover the full v0.2 lifecycle,
+  and a full-lifecycle integration test that walks scaffold through
+  handoff in one pass.

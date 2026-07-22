@@ -63,7 +63,7 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. Recruiter, hiring-manager, an
 - `content/projects/*.mdx` is the source of truth for case studies. Frontmatter is validated by Zod at build time; build fails with a per-file error on schema violations.
 - `/projects` index lists every project with Category and Technology filter chips. Filter state persists in the URL so filtered views are shareable; the page degrades gracefully without JavaScript.
 - `/projects/[slug]` case-study detail pages follow an 11-section template (Overview, Problem, Users, Goals, Architecture, Technologies, Testing Strategy, AI Role, Challenges, Results, Next Steps).
-- Four projects live: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework, Marketing Commander. The Marketing Commander case study carries an extra section ("How Test Commander Tests This Project") documenting the mostly autonomous Test Commander engagement on that repo.
+- Five projects live: Universal Testing Language, Agentic Testing Workflow Prototype, API Automation Framework, Marketing Commander, Dev Commander. The Marketing Commander case study carries an extra section ("How Test Commander Tests This Project") documenting the mostly autonomous Test Commander engagement on that repo; the Dev Commander case study carries an extra section ("How Dev Commander Hands Off to Test Commander") documenting the build-side counterpart tool and its `/dc:handoff-to-tc` composition with Test Commander.
 - Per-project Open Graph images generated at build time via `next/og` `ImageResponse` (1200x630 PNG per project slug).
 - Home "Featured projects" automatically surfaces the top three projects marked `featured: true`, sorted by `order`.
 - Sitemap includes every project detail route.

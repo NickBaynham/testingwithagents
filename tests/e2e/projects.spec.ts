@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("projects index lists all four projects", async ({ page }) => {
+test("projects index lists all five projects", async ({ page }) => {
   await page.goto("/projects/");
   await expect(page.getByRole("heading", { level: 1, name: /proof of work/i })).toBeVisible();
   for (const title of [
@@ -8,6 +8,7 @@ test("projects index lists all four projects", async ({ page }) => {
     "Agentic Testing Workflow Prototype",
     "API Automation Framework",
     "Marketing Commander",
+    "Dev Commander",
   ]) {
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   }
@@ -31,6 +32,7 @@ test("category filter narrows the project list", async ({ page }) => {
     page.getByRole("link", { name: /Agentic Testing Workflow Prototype/i }),
   ).not.toBeVisible();
   await expect(page.getByRole("link", { name: /Marketing Commander/i })).not.toBeVisible();
+  await expect(page.getByRole("link", { name: /Dev Commander/i })).not.toBeVisible();
 });
 
 test("technology filter narrows the project list", async ({ page }) => {
@@ -73,7 +75,7 @@ test("home renders three featured projects linking to detail routes", async ({ p
   }
 });
 
-test("sitemap.xml includes the four project detail routes", async ({ page }) => {
+test("sitemap.xml includes the five project detail routes", async ({ page }) => {
   const response = await page.request.get("/sitemap.xml");
   expect(response.status()).toBe(200);
   const body = await response.text();
@@ -82,6 +84,7 @@ test("sitemap.xml includes the four project detail routes", async ({ page }) => 
     "agentic-testing-workflow",
     "api-automation-framework",
     "marketing-commander",
+    "dev-commander",
   ]) {
     expect(body).toContain(`/projects/${slug}`);
   }
@@ -94,5 +97,18 @@ test("marketing commander case study renders the Test Commander section", async 
     page.getByRole("heading", { name: "How Test Commander Tests This Project", exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/587 mechanical findings/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Results", exact: true })).toBeVisible();
+});
+
+test("dev commander case study renders the Test Commander handoff section", async ({ page }) => {
+  await page.goto("/projects/dev-commander/");
+  await expect(page.getByRole("heading", { level: 1, name: "Dev Commander" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "How Dev Commander Hands Off to Test Commander",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/dc:handoff-to-tc/i).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Results", exact: true })).toBeVisible();
 });

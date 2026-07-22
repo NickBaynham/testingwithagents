@@ -61,6 +61,7 @@ Phase 1 MVP skeleton (Commits A + B + C) complete. All primary nav routes except
 - Playwright Automation Project (req section 7.4).
 - Quality Intelligence Dashboard (req section 7.5).
 - Refresh the Marketing Commander case study as its build progresses: the "How Test Commander Tests This Project" section states that charters, BDD, and Test Commander-authored automation have not run yet - update the numbers and that claim when the app's Phase 5+ lands and those Test Commander phases activate.
+- Refresh the Dev Commander case study as the tool advances past v0.2.0: the "Next Steps" section lists the bootstrap check, `docs/` guides, CI/CD and security-scanning skills, and the full-lifecycle integration test as not-yet-built. Update the version, phase count, test count, and command surface when v0.3+ ships.
 
 ## Phase 3 (done)
 
