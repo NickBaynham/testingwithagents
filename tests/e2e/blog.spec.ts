@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-test("blog index lists all seventeen posts newest first", async ({ page }) => {
+test("blog index lists all eighteen posts newest first", async ({ page }) => {
   await page.goto("/blog/");
   await expect(page.getByRole("heading", { level: 1, name: /notes on testing/i })).toBeVisible();
 
   const titles = await page.getByRole("heading", { level: 2 }).allTextContents();
-  expect(titles[0]).toMatch(/Generating a UI test suite/i);
-  expect(titles).toHaveLength(17);
+  expect(titles[0]).toMatch(/The bugs Test Commander is catching/i);
+  expect(titles).toHaveLength(18);
 });
 
 test("category filter narrows the post list", async ({ page }) => {
@@ -46,7 +46,7 @@ test("home renders the three most recent posts in Latest writing", async ({ page
   });
   const titles = await section.getByRole("heading", { level: 3 }).allTextContents();
   expect(titles).toHaveLength(3);
-  expect(titles[0]).toMatch(/Generating a UI test suite/i);
+  expect(titles[0]).toMatch(/The bugs Test Commander is catching/i);
 });
 
 test("rss.xml is served with all post URLs", async ({ page }) => {
@@ -55,6 +55,7 @@ test("rss.xml is served with all post URLs", async ({ page }) => {
   const body = await response.text();
   expect(body).toContain("<rss");
   for (const slug of [
+    "bugs-test-commander-finds-in-marketing-commander",
     "generating-a-ui-test-suite-failures-as-findings",
     "test-commander-from-swagger-to-quality-gate",
     "test-automation-reference-implementations",
@@ -82,8 +83,8 @@ test("feed.json validates as JSON Feed 1.1 and lists the posts", async ({ page }
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(body.version).toBe("https://jsonfeed.org/version/1.1");
-  expect(body.items).toHaveLength(17);
-  expect(body.items[0].url).toContain("/blog/generating-a-ui-test-suite-failures-as-findings/");
+  expect(body.items).toHaveLength(18);
+  expect(body.items[0].url).toContain("/blog/bugs-test-commander-finds-in-marketing-commander/");
 });
 
 test("sitemap.xml includes every blog post route", async ({ page }) => {
@@ -91,6 +92,7 @@ test("sitemap.xml includes every blog post route", async ({ page }) => {
   expect(response.status()).toBe(200);
   const body = await response.text();
   for (const slug of [
+    "bugs-test-commander-finds-in-marketing-commander",
     "generating-a-ui-test-suite-failures-as-findings",
     "test-commander-from-swagger-to-quality-gate",
     "test-automation-reference-implementations",

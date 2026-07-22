@@ -1,0 +1,135 @@
+---
+title: "The bugs Test Commander is catching in Marketing Commander: a field report from a greenfield build"
+slug: "bugs-test-commander-finds-in-marketing-commander"
+excerpt: "Test Commander has been attached to a greenfield product since before its first commit. This is a taxonomy of the real bugs it has surfaced - substring traps, lost-update races, priority-inverted requirements, a ninety-minute CI hang - and the three near-misses where a bug slipped past the developer and the passing test suite and the CI, and only an independent review caught it."
+publishedAt: "2026-07-22"
+categories:
+  - "Agentic Testing"
+  - "Quality Strategy"
+  - "Test Automation"
+tags:
+  - "test-commander"
+  - "marketing-commander"
+  - "agentic-testing"
+  - "quality-engineering"
+  - "bug-taxonomy"
+  - "greenfield"
+  - "ci"
+---
+
+Most quality tools meet a codebase after it is written. Test Commander met Marketing Commander before it existed. When the engagement started on 2026-07-18, the application repository was greenfield - zero commits, no code, no schema, one plan. The first thing the quality function reviewed was not a pull request; it was the plan itself.
+
+That framing matters, because it changes what "a bug" means. Some of the most consequential defects Test Commander has caught in this project are not in code at all - they are contradictions in requirements that would have shipped a release gate that could never pass. But plenty are in code, and the code bugs are the more interesting story, because the instructive ones share a property: they slipped past the developer, past a green local build, and in one case past the hosted CI, and were caught only because a separate reviewer went looking for them on purpose.
+
+Marketing Commander is an autonomous marketing platform for artists, and its build is documented in its own [project case study](/projects/marketing-commander/). This post is narrower. It is a field report on the bugs - what types they are, what the broken code actually looked like, and why the ones that got the furthest are the ones worth studying. Every finding below is quoted from the Test Commander workspace's journals and review documents, with the real commit that fixed it. As of this writing the app is mid Phase 6 of a fourteen-phase MVP, so this is a snapshot of a moving target, not a post-mortem.
+
+## What "testing" means when there is nothing to test yet
+
+Test Commander runs as a separate workspace pointed at the app repo. It does not live inside Marketing Commander; it reviews it from the outside, which keeps the reviewer from grading its own homework. Across the first five phases it ran the requirements pipeline, seeded a test idea per requirement, wrote a phase-exit review at each boundary, and - the part that catches the most - monitored the app repo commit by commit, re-running the build gates itself rather than trusting the ones that already ran.
+
+The verdicts so far give the shape of it. Phase 2 passed. Phase 3 passed. Phase 4 passed. Phase 5 passed after remediation of twelve findings. Each of those "passes" has an asterisk, and the asterisks are where the learning is.
+
+Here is the taxonomy.
+
+## Type 1: the substring trap
+
+The headline bug is small enough to fit on one line, which is exactly why it is worth leading with.
+
+Marketing Commander runs a five-service Docker stack, and a bootstrap script checks that every service is healthy before the app is considered up. The check classified health like this:
+
+```python
+unhealthy = [line for line in lines if "healthy" not in line]
+```
+
+Read it quickly and it looks right: keep the lines that are not healthy. Read it as a machine and it is broken, because `"healthy"` is a substring of `"unhealthy"`. A service reporting **unhealthy** contains the string `healthy`, so it was filtered out of the unhealthy list. The one status you most need to catch was the one status the check accepted.
+
+The fix stops matching substrings and matches the field:
+
+```python
+# A service is healthy only when its Health field reports exactly
+# "healthy"; an empty field means no healthcheck is declared, which
+# violates the Phase 3 health contract and fails here by design.
+unhealthy = [line for line in lines if line.split(maxsplit=1)[1:] != ["healthy"]]
+```
+
+It landed in commit `19c13f4`, whose message is blunt about the risk: "'healthy' substring matching would have accepted 'unhealthy'; the Health field must now equal 'healthy' exactly."
+
+**The lesson the reviewer wrote down is more valuable than the fix: on state-classification code, test the negative token against the positive-token match.** The trap is a genus, not a one-off - `unhealthy` contains `healthy`, `failed` shows up inside `passed with failures`, and any time you classify a state by asking whether a word appears in a string, the opposite state may contain that word. Test Commander stored that lesson in its workspace memory, and the memory earned its keep: in Phase 5 the same class reappeared, where duplicate-name detection was substring-matching against a database driver's error string. The reviewer flagged it (finding B6) as "the same substring-trap class recorded in this workspace's lessons memory," and it was fixed the structural way - matching the constraint name the database returns instead of grepping the error text.
+
+This is also the first of the near-misses, and the most candid one. The health-parse bug was in code that the Phase 2 review had already signed off as PASS with zero findings, after what the review itself described as a line-by-line read. The bug was latent - the health path did not activate until Phase 3 - so nothing had executed it. When the reviewer found it later, it did not quietly amend the record. It issued a post-review addendum that retracts the earlier verdict in plain language: "so 'zero findings' was wrong on that point - the correct count is one latent Minor defect." A quality function that publishes its own corrections is worth more than one that is never wrong, because only one of those two is telling you the truth.
+
+## Type 2: races and lost updates
+
+The largest single haul came in Phase 5, and it clustered around concurrency - the category of bug that a single-threaded test almost never provokes and that a passing test suite is therefore least likely to catch.
+
+The setup made the review unusually honest. The test lead had implemented Phase 5 on the Product Owner's instruction, so to keep the reviewer independent of the author, two separate adversarial reviewer agents - one backend, one frontend - reviewed the code cold. They found ten Major and two Minor findings, all fixed in commit `ce22921`. The load-bearing fact, recorded in the journal: **the implementer's own 68-test gate had passed and missed every one of them.**
+
+The backend races:
+
+- **Lost updates (finding B1).** Optimistic concurrency was implemented as check-then-write: read the current version into memory, compare, then write. Two concurrent writers could both pass the in-memory check and both write, and the second silently clobbered the first. The fix moves the check into the write itself - a version-conditioned UPDATE, so the losing writer gets a `StaleVersion` error instead of a silent overwrite.
+- **Duplicate workspace on first run (finding B2).** The workspace singleton was enforced with check-then-insert and no database constraint, so two concurrent first-runs could each create a workspace. The fix is a unique index over a constant expression, with savepoint recovery - the database enforces the invariant the application only intended.
+
+The frontend races were the ones with teeth for a user:
+
+- **Fetch aimed at the wrong record (finding F2).** The artist-detail fetch had no cancellation guard. Navigate fast between two artists and an archive or restore action could land on the wrong one. The fix cancels in-flight fetches and keys actions to the route.
+
+That last one is worth dwelling on, because it came back. In Phase 6.3 - the AIP editor, commit `89efb09` - an independent frontend review found a Critical defect: the editor's initial-load effect had no cancellation guard, so a stale in-flight load "could overwrite a newer artist's state and a subsequent save could write one artist's AIP into another's record." That is cross-artist data corruption, and it was a straight regression of the F2 pattern from Phase 5, introduced into new code "despite correct fixes existing in sibling files." Two of the five Phase 6.3 findings were regressions of Phase 5 web-shell fixes.
+
+**The pattern is the point: a fix in one file is not a fix in the codebase.** The same author, having just fixed a race, reintroduced it a phase later in a new component. The passing suite did not notice because the new component had its own tests and they were green. Only a reviewer who had seen the earlier fix recognized the regression - which is an argument for a quality function that carries memory across phases, not a fresh pair of eyes each time.
+
+## Type 3: validation that only half exists
+
+A quieter category, and a common one in real products: validation that is present but incomplete, so some invalid inputs are rejected loudly and others sail through invisibly.
+
+- **Confirmation that confirmed nothing (finding B3).** Deleting an artist - an irreversible action that removes the profile, campaigns, content, and all local generation data - was gated on a bare `confirm=true` boolean. A boolean proves you clicked, not that you knew what you were deleting. The fix requires a `confirm_name` that matches the artist's name exactly, and the rejection names what will be destroyed. This is a validation gap and a requirements-fidelity fix at once: the business rule always intended informed confirmation; the code had implemented a checkbox.
+- **Validation feedback for one field out of three (finding F1).** The create form displayed validation errors for the name field only. Genre and summary violations were, in the reviewer's words, "silently invisible" - the server rejected them, but the user saw nothing. The fix adds per-field messages, ARIA attributes, and focus-to-first-invalid. This one, too, regressed later: in Phase 6.3 the AIP editor showed validation only for the content textarea, so a `sections.<name>.sources` error rendered under the wrong field with the wrong focus target.
+- **Error handling that crashed on errors (finding F4).** The API client parsed every response as JSON. Any unhandled 500 with a non-JSON body crashed the client and leaked a parser error to the user. The fix normalizes to a structured `ApiError` when parsing fails - the error path now survives the error.
+
+None of these is exotic. All of them are the kind of gap that a happy-path demo never reveals and a user hits in the first week.
+
+## Type 4: bugs in the requirements, before any code
+
+The most preventive findings never touched code, because they were caught while the plan was still a document. Test Commander ran a logical-consistency audit over the plan on day one and found two Major contradictions that would have poisoned the release gate:
+
+- **Two different golden paths.** The product's own documents disagreed on what the MVP does. The workflow description and the outcome statement both included "Generate campaign brief"; the Phase 14 golden-path test that gates release omitted it. As the analysis put it, "the MVP could pass release validation without validating a declared MVP outcome." A release gate that does not test a shipped feature is worse than no gate, because it grants false confidence.
+- **A backup test with no backup.** Phase 14 gated release on a "backup and restore test," while the backup capability itself was deferred to Phase 20. The release could never pass as written.
+
+Alongside those, the audit flagged that roughly a third of the acceptance criteria were not verifiable as written - including the memorable case of "invalid input is rejected with clear validation feedback" for a phase in which "no validation rules exist anywhere" - and it called out weasel words ("as appropriate," "meaningful") in documents that are consumed by AI agents, "which will resolve weasel words silently and self-servingly." All of it was remediated within hours: a single canonical thirteen-step golden path, backup rescoped to a manual procedure, and a set of recorded decisions pinning the quality bar, cost caps, and privacy rules the plan had left implicit.
+
+Then there is my favorite requirements bug, because it is subtle and it is exactly the kind a human skims past: **a priority inversion.** Finding MAJ-1. Requirement REQ-038 (privacy, priority Must) required that deletion capability exist before the product's first live AI call. The requirement that actually provided deletion, REQ-005, was priority Should - deferrable. A Must depended on a Should. If REQ-005 slipped, REQ-038 could not be satisfied, and the phase that makes the first paid model call would be blocked with no obvious culprit. The fix split deletion out of REQ-005 into a new REQ-051 marked Must, and the register now carries the provenance in the requirement text itself: deletion "cannot be deferrable (Test Commander finding MAJ-1, 2026-07-18; split from REQ-005)." It shipped in commit `657767e` with five Minor findings and was confirmed closed in a re-run.
+
+## Type 5: the process bug that hid for ninety minutes
+
+Not every defect is in the product. One of the sharpest catches was in the pipeline that builds it, and it is the near-miss that most cleanly makes the case for an independent reviewer.
+
+Two hosted CI runs - for increments 4.1 and 4.2 - failed by hanging for about ninety minutes each, up to the runner's ceiling. Meanwhile every local gate was green. The root cause: the CI workflow installed only the root project, so when it changed into `apps/api` and ran the tests, that command, in the fix commit's words, "had no environment." The API harness dependencies were never installed in CI.
+
+What makes this a near-miss rather than a routine red build is where the blindness lived. The developer's local `make check` was green. The test lead's own light verification of 4.1 and 4.2 had checked local execution - and had not checked the hosted runs. So the gap existed in three places at once: the CI configuration, the developer's local gate, and the reviewer's own checklist. It surfaced only because someone finally looked at hosted-run status directly. The fix (commit `b5fafb5`) runs the same `make setup` contributors use and adds a twenty-minute job timeout so any recurrence fails fast instead of hanging; the next run was green in one minute forty-four. And the reviewer amended its standing process: "hosted CI status is now a standing part of per-increment verification." The bug fixed the checklist, which is the outcome you want from a process defect.
+
+## Type 6: the false positives, reported as false positives
+
+A field report on bug-finding that only listed real bugs would be dishonest, because the raw output of an automated reviewer is mostly noise, and how a tool handles its own noise is a quality signal in itself.
+
+Test Commander's mechanical requirements pass produced 562 findings across 50 requirements. The overwhelming majority - 440 of them - were a single family: a consistency heuristic firing on "opposing modals over a shared subject." The judgment layer did not ship those as defects. It explained them: the heuristic was keying on the register's uniform metadata vocabulary - every requirement has the words statement, rationale, priority, verification, status, phase - so every pair of requirements looked superficially like it shared a subject. "Cause: uniform document structure, not contradiction. Zero were genuine on sampling." Two more families were the same story: every user story flagged as too large because the word count included the preconditions and flows bundled with it, and every story flagged for phrasing because it used "As the artist, I create" instead of the canonical template.
+
+The discipline here is that the tool distinguished 562 mechanical findings from the six that mattered - one Major, five Minor - and wrote down why the other 556 were noise, with a recommendation to feed the false-positive families back into its own learning loop so the next run is quieter. **A reviewer that cannot tell you which of its findings to ignore is not saving you work; it is moving the work.**
+
+## What actually makes it work
+
+Step back from the individual bugs and a few structural choices explain why the catch rate is what it is.
+
+**Independent review is load-bearing, not ceremonial.** The single most repeated lesson in the workspace is that the author's own passing suite is not evidence of correctness. Sixty-eight tests passed and missed twelve findings in Phase 5. The value came from reviewers who did not write the code and were pointed at it adversarially. When the implementer and the reviewer are the same agent, the structure is compromised, and the project's response - spinning up separate reviewer agents for exactly those increments - is the tell that the discipline is real.
+
+**Memory across phases turns one-off fixes into a defense against regressions.** The substring trap was caught a second time because the lesson was stored. The cross-artist race was caught as a regression because the reviewer had seen the original. A quality function with no memory would have re-derived both from scratch, or missed them.
+
+**Honesty is a feature.** The retracted zero-findings verdict, the false alarm in Phase 3 that turned out to be a port collision in the test environment rather than a product bug, the false-positive families reported as false positives - each of these is a case where the tool told a less flattering truth than it could have. That is the behavior that makes the flattering verdicts trustworthy.
+
+**Humans hold the gates.** None of this is autonomy for its own sake. The scope decisions were approved on explicit instruction, remediations are applied on instruction, and no phase closes without the owner's sign-off. The agent finds and proposes; a person decides. That is the arrangement that lets the autonomy run hard without running unsupervised.
+
+## The scoreboard, and what it is really measuring
+
+Tally the code that never shipped because of this: a health check that accepted the one state it existed to catch; a deletion confirmation that confirmed nothing; two lost-update races and a cross-artist data-corruption race; an API client that crashed on the errors it was written to handle; a release gate that tested a feature the product does not build and required a backup the product cannot take; a Must requirement quietly depending on a deferrable Should; and a CI pipeline that hung for ninety minutes because it never installed its own dependencies. The acceptance plan that now guards the release runs forty tests, sixteen of them release-gating.
+
+The number that matters most is not the count of bugs, though. It is where they were caught. The substring trap, the CI hang, and the Phase 5 races were all caught after a green build - after the developer was satisfied, after the local gate passed, in one case after the reviewer's own first look. What separated found from shipped was a second, independent, adversarial pass with memory of what had gone wrong before.
+
+That is the whole argument for building quality in as a parallel function from day zero rather than bolting it on before launch. Marketing Commander is not being tested at the end. It is being tested continuously, by a reviewer that has been there since before the first commit, that catches the bugs the author cannot see in their own code, and that is candid enough to correct itself in public when it misses one. The bugs are the evidence. The discipline is the product.
